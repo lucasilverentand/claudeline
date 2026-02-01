@@ -7,7 +7,9 @@
     "claudeline": "./dist/index.js"
   },
   "files": [
-    "dist"
+    "dist",
+    ".claude",
+    ".claude-plugin"
   ],
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --clean",
@@ -19,9 +21,10 @@
     "claude-code",
     "statusline",
     "cli",
-    "terminal"
+    "terminal",
+    "claude-plugin"
   ],
-  "author": "",
+  "author": "Luca Silverentand",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^20.11.0",

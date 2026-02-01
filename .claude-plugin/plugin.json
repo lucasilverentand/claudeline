@@ -1,0 +1,8 @@
+{
+  "name": "claudeline",
+  "description": "Customizable status line for Claude Code. Configure themes and custom formats for your terminal status display.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Luca Silverentand"
+  }
+}
