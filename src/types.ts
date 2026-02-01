@@ -45,12 +45,3 @@ export interface ParsedComponent {
   condition?: string;
   children?: ParsedComponent[];
 }
-
-export interface GeneratorOptions {
-  output: 'node' | 'bash' | 'python';
-  noEmoji: boolean;
-  noColor: boolean;
-  separator: string;
-}
-
-export type ComponentGenerator = (key: string, args?: string) => string;

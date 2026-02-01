@@ -2,20 +2,54 @@
 
 import { program } from 'commander';
 import { parseFormat, listComponents } from './parser.js';
-import { generateScript } from './generator.js';
 import { getTheme, listThemes, THEMES } from './themes.js';
 import { install, uninstall } from './installer.js';
 import { getSampleDataJson } from './preview.js';
-import type { GeneratorOptions } from './types.js';
+import { evaluateFormat } from './runtime.js';
 
 const VERSION = '1.0.0';
+
+// Helper to read stdin
+async function readStdin(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let input = '';
+    process.stdin.setEncoding('utf8');
+    process.stdin.on('data', (chunk) => {
+      input += chunk;
+    });
+    process.stdin.on('end', () => {
+      resolve(input);
+    });
+    process.stdin.on('error', reject);
+  });
+}
+
+// Run subcommand - evaluates format string at runtime
+program
+  .command('run <format>')
+  .description('Evaluate a format string and output the status line')
+  .option('--disable-emoji', 'Disable emoji output')
+  .option('--disable-color', 'Disable color output')
+  .action(async (format, options) => {
+    try {
+      const input = await readStdin();
+      const data = JSON.parse(input);
+      const output = evaluateFormat(format, data, {
+        noEmoji: options.disableEmoji ?? false,
+        noColor: options.disableColor ?? false,
+      });
+      console.log(output);
+    } catch (e) {
+      // On any error, output a simple fallback
+      console.log('[claudeline]');
+    }
+  });
 
 program
   .name('claudeline')
   .description('Customizable status line generator for Claude Code')
   .version(VERSION)
   .argument('[format]', 'Status line format string')
-  .option('-o, --output <type>', 'Output format: node, bash, python', 'node')
   .option('-i, --install', 'Install directly to ~/.claude/')
   .option('-u, --uninstall', 'Remove statusline configuration')
   .option('--project', 'Install/uninstall to project .claude/ instead of global')
@@ -23,18 +57,20 @@ program
   .option('-l, --list', 'List all available components')
   .option('--themes', 'List all available themes')
   .option('-p, --preview', 'Show sample JSON data for testing')
-  .option('-v, --verbose', 'Show the generated script')
   .option('--no-emoji', 'Disable emoji output')
   .option('--no-color', 'Disable color output')
-  .option('-s, --separator <sep>', 'Default separator between components', 'space')
+  .option('--use-bunx', 'Use bunx in installed command')
+  .option('--use-npx', 'Use npx in installed command')
+  .option('--global-install', 'Assume claudeline is globally installed (use claudeline directly)')
   .addHelpText('after', `
 Examples:
-  $ npx claudeline "fs:dir git:branch claude:model"
-  $ npx claudeline --theme powerline --install
-  $ npx claudeline --theme minimal --install --project
-  $ npx claudeline "[bold:cyan:claude:model] fs:dir sep:arrow green:git:branch"
+  $ npx claudeline --theme minimal --install
+  $ npx claudeline --theme powerline --install --project
   $ npx claudeline --list
   $ npx claudeline --themes
+
+  # Test the run command directly:
+  $ echo '{"model":{"display_name":"Sonnet"}}' | npx claudeline run "claude:model fs:dir"
 
 Format Syntax:
   component       Single component (e.g., fs:dir, git:branch)
@@ -69,8 +105,8 @@ Multiple style prefixes can be chained: bold:green:git:branch
     if (options.preview) {
       console.log('Sample JSON input for testing:\n');
       console.log(getSampleDataJson());
-      console.log('\nPipe this to your statusline script to test:');
-      console.log('  echo \'<json>\' | ~/.claude/statusline.js');
+      console.log('\nTest with the run command:');
+      console.log('  echo \'<json>\' | npx claudeline run "claude:model fs:dir"');
       return;
     }
 
@@ -92,7 +128,7 @@ Multiple style prefixes can be chained: bold:green:git:branch
       formatStr = THEMES.default;
     }
 
-    // Parse the format string
+    // Parse the format string to validate it
     const components = parseFormat(formatStr);
 
     if (components.length === 0) {
@@ -100,19 +136,15 @@ Multiple style prefixes can be chained: bold:green:git:branch
       process.exit(1);
     }
 
-    // Generate the script
-    const genOptions: GeneratorOptions = {
-      output: options.output as 'node' | 'bash' | 'python',
-      noEmoji: !options.emoji,
-      noColor: !options.color,
-      separator: options.separator,
-    };
-
-    const script = generateScript(components, genOptions);
-
-    // Handle output
+    // Handle installation
     if (options.install) {
-      const result = install(script, options.project);
+      const result = install(formatStr, options.project, {
+        useBunx: options.useBunx,
+        useNpx: options.useNpx,
+        globalInstall: options.globalInstall,
+        noEmoji: !options.emoji,
+        noColor: !options.color,
+      });
       if (result.success) {
         console.log('✓ ' + result.message);
         console.log('\nRestart Claude Code to see your new status line!');
@@ -123,14 +155,9 @@ Multiple style prefixes can be chained: bold:green:git:branch
       return;
     }
 
-    if (options.verbose) {
-      console.log('Generated script:\n');
-      console.log(script);
-      return;
-    }
-
-    // Default: output the script
-    console.log(script);
+    // Default: show the command that would be installed
+    console.log('Format string validated. Use --install to install.');
+    console.log(`Command: npx claudeline run '${formatStr}'`);
   });
 
 program.parse();

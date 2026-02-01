@@ -2,6 +2,14 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+export interface InstallOptions {
+  useBunx?: boolean;
+  useNpx?: boolean;
+  globalInstall?: boolean;
+  noEmoji?: boolean;
+  noColor?: boolean;
+}
+
 function getClaudeDir(project: boolean): string {
   if (project) {
     return path.join(process.cwd(), '.claude');
@@ -9,21 +17,60 @@ function getClaudeDir(project: boolean): string {
   return path.join(os.homedir(), '.claude');
 }
 
-export function install(script: string, project = false): { success: boolean; message: string } {
+function escapeForShell(str: string): string {
+  return str.replace(/'/g, "'\\''");
+}
+
+function detectPackageRunner(): 'bunx' | 'npx' {
+  // Check if running under bun
+  if (process.versions.bun || process.env.BUN_INSTALL) {
+    return 'bunx';
+  }
+  return 'npx';
+}
+
+function buildCommand(format: string, options: InstallOptions): string {
+  const parts: string[] = [];
+
+  if (options.globalInstall) {
+    parts.push('claudeline');
+  } else if (options.useBunx) {
+    parts.push('bunx claudeline');
+  } else if (options.useNpx) {
+    parts.push('npx claudeline');
+  } else {
+    // Auto-detect based on runtime
+    parts.push(`${detectPackageRunner()} claudeline`);
+  }
+
+  parts.push('run');
+  parts.push(`'${escapeForShell(format)}'`);
+
+  if (options.noEmoji) {
+    parts.push('--disable-emoji');
+  }
+  if (options.noColor) {
+    parts.push('--disable-color');
+  }
+
+  return parts.join(' ');
+}
+
+export function install(
+  format: string,
+  project = false,
+  options: InstallOptions = {}
+): { success: boolean; message: string } {
   const claudeDir = getClaudeDir(project);
-  const scriptPath = path.join(claudeDir, 'statusline.js');
   const settingsPath = path.join(claudeDir, 'settings.json');
 
   try {
-    // Ensure .claude directory exists
     if (!fs.existsSync(claudeDir)) {
       fs.mkdirSync(claudeDir, { recursive: true });
     }
 
-    // Write the statusline script
-    fs.writeFileSync(scriptPath, script, { mode: 0o755 });
+    const command = buildCommand(format, options);
 
-    // Update settings.json
     let settings: Record<string, unknown> = {};
     if (fs.existsSync(settingsPath)) {
       try {
@@ -35,7 +82,7 @@ export function install(script: string, project = false): { success: boolean; me
 
     settings.statusLine = {
       type: 'command',
-      command: scriptPath,
+      command,
       padding: 0,
     };
 
@@ -43,7 +90,7 @@ export function install(script: string, project = false): { success: boolean; me
 
     return {
       success: true,
-      message: `Installed statusline to ${scriptPath}\nUpdated settings at ${settingsPath}`,
+      message: `Updated settings at ${settingsPath}\nCommand: ${command}`,
     };
   } catch (error) {
     return {
@@ -55,16 +102,9 @@ export function install(script: string, project = false): { success: boolean; me
 
 export function uninstall(project = false): { success: boolean; message: string } {
   const claudeDir = getClaudeDir(project);
-  const scriptPath = path.join(claudeDir, 'statusline.js');
   const settingsPath = path.join(claudeDir, 'settings.json');
 
   try {
-    // Remove the script if it exists
-    if (fs.existsSync(scriptPath)) {
-      fs.unlinkSync(scriptPath);
-    }
-
-    // Remove statusLine from settings
     if (fs.existsSync(settingsPath)) {
       const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
       delete settings.statusLine;
