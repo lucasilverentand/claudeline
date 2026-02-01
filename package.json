@@ -1,0 +1,34 @@
+{
+  "name": "claudeline",
+  "version": "1.0.0",
+  "description": "Customizable status line generator for Claude Code",
+  "type": "module",
+  "bin": {
+    "claudeline": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --clean",
+    "dev": "tsup src/index.ts --format esm --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "statusline",
+    "cli",
+    "terminal"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  }
+}
