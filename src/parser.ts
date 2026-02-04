@@ -197,6 +197,15 @@ export function listComponents(): void {
       ],
     },
     {
+      name: 'Usage/Limits',
+      prefix: 'usage',
+      items: [
+        '5h', 'week', '7d', '5h-reset', 'week-reset', '7d-reset',
+        '5h-bar', '5h-bar:N', 'week-bar', 'week-bar:N',
+        '5h-emoji', 'week-emoji',
+      ],
+    },
+    {
       name: 'Separators',
       prefix: 'sep',
       items: [

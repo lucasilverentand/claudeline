@@ -7,6 +7,7 @@ import { getSeparator } from './separators.js';
 import { getEmoji } from './emojis.js';
 import { COLORS, RESET } from './colors.js';
 import type { ParsedComponent, ClaudeInput } from './types.js';
+import { evaluateUsageComponent } from './usage.js';
 
 export interface RuntimeOptions {
   noEmoji: boolean;
@@ -415,6 +416,9 @@ function evaluateComponent(
       break;
     case 'env':
       result = evaluateEnvComponent(comp.key);
+      break;
+    case 'usage':
+      result = evaluateUsageComponent(comp.key, comp.args);
       break;
     case 'time':
       result = evaluateTimeComponent(comp.key, data);
