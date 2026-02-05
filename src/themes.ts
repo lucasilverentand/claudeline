@@ -29,7 +29,7 @@ export const THEMES: Record<string, string> = {
 
   colorful: 'bold:magenta:claude:model sep:arrow cyan:fs:dir sep:arrow green:git:branch yellow:git:status sep:arrow blue:ctx:percent',
 
-  luca: 'claude:model-letter git:repo git:branch git:dirty cost:total',
+  luca: 'bold:magenta:claude:model-letter sep:pipe cyan:nerd:repo cyan:git:repo sep:none dim:text:: sep:none green:git:branch if:subdir(sep:none white:text:/ sep:none white:fs:relative) if:dirty(sep:pipe git:dirty) sep:pipe white:cost:total sep:pipe bold:white:usage:5h-bar:8 usage:5h sep:pipe bold:white:usage:week-bar:8 usage:week',
 };
 
 export function getTheme(name: string): string | null {
