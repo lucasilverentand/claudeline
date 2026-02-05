@@ -7,7 +7,7 @@ import { getSeparator } from './separators.js';
 import { getEmoji } from './emojis.js';
 import { COLORS, RESET } from './colors.js';
 import type { ParsedComponent, ClaudeInput } from './types.js';
-import { evaluateUsageComponent } from './usage.js';
+import { evaluateUsageComponent, evaluateAccountComponent } from './usage.js';
 import { getNerdIcon } from './nerdfonts.js';
 
 export interface RuntimeOptions {
@@ -437,6 +437,9 @@ function evaluateComponent(
     case 'usage':
       result = evaluateUsageComponent(comp.key, comp.args);
       break;
+    case 'account':
+      result = evaluateAccountComponent(comp.key);
+      break;
     case 'time':
       result = evaluateTimeComponent(comp.key, data);
       break;
@@ -514,5 +517,7 @@ export function evaluateFormat(
   };
 
   const components = parseFormat(format);
-  return evaluateComponents(components, data, opts);
+  const result = evaluateComponents(components, data, opts);
+  // Ensure trailing ANSI reset so styles don't leak between renders
+  return opts.noColor ? result : result + `\x1b[0m`;
 }

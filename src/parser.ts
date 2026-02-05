@@ -201,6 +201,11 @@ export function listComponents(): void {
       ],
     },
     {
+      name: 'Account',
+      prefix: 'account',
+      items: ['email', 'name', 'display-name', 'org', 'plan', 'tier'],
+    },
+    {
       name: 'Usage/Limits',
       prefix: 'usage',
       items: [
