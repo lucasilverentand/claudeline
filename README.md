@@ -1,12 +1,12 @@
 # claudeline
 
-Customizable status line for [Claude Code](https://claude.ai/code). Display model info, git status, context usage, costs, and more in your terminal.
+Customizable status line for [Claude Code](https://claude.ai/code). Display model info, git status, context usage, costs, API usage limits, and more in your terminal.
 
 ## Installation
 
 ```bash
 # Install with a theme
-npx claudeline --theme minimal --install
+npx claudeline --theme luca --install
 
 # Or with a custom format
 npx claudeline "claude:model fs:dir git:branch" --install
@@ -39,17 +39,21 @@ npx claudeline --uninstall
 |-------|--------|
 | `minimal` | `claude:model fs:dir` |
 | `default` | `[claude:model] emoji:folder fs:dir if:git(sep:pipe emoji:branch git:branch git:status)` |
-| `powerline` | `bold:cyan:claude:model sep:powerline fs:dir if:git(sep:powerline green:git:branch git:status)` |
+| `powerline` | `bold:cyan:claude:model sep:powerline fs:dir if:git(...)` |
 | `full` | `[bold:cyan:claude:model] fs:home sep:arrow green:git:branch git:status sep:pipe ctx:bar ctx:percent sep:pipe cost:total` |
-| `git` | `[claude:model] emoji:folder fs:dir sep:pipe emoji:branch git:branch git:status git:ahead-behind if:dirty(sep:pipe git:staged git:modified git:untracked)` |
+| `git` | `[claude:model] emoji:folder fs:dir sep:pipe emoji:branch git:branch git:status git:ahead-behind if:dirty(...)` |
 | `tokens` | `claude:model sep:pipe ctx:emoji ctx:tokens sep:pipe cost:lines` |
 | `dev` | `[fs:dir] git:branch sep:pipe env:node sep:pipe time:now` |
 | `dashboard` | `[bold:claude:model] fs:dir sep:pipe git:branch git:status sep:pipe ctx:percent sep:pipe cost:total sep:pipe time:now` |
 | `context-focus` | `claude:model sep:pipe ctx:bar sep:pipe ctx:tokens sep:pipe ctx:emoji` |
 | `cost` | `claude:model sep:pipe cost:total sep:pipe cost:duration sep:pipe cost:lines-both` |
 | `simple` | `claude:model fs:dir git:branch` |
+| `verbose` | `[claude:model] [claude:version] sep:pipe fs:home sep:pipe git:branch git:status git:ahead-behind sep:pipe ctx:bar ctx:percent sep:pipe cost:total cost:duration sep:pipe time:now` |
 | `compact` | `claude:model sep:slash fs:dir sep:slash git:branch` |
 | `colorful` | `bold:magenta:claude:model sep:arrow cyan:fs:dir sep:arrow green:git:branch yellow:git:status sep:arrow blue:ctx:percent` |
+| `luca` | Nerd font icons, colored repo:branch, dirty state, cost, 5h/weekly usage bars |
+
+When you install with `--theme`, claudeline stores a `theme:name` reference so your status line automatically picks up theme updates when you upgrade.
 
 ## Format Syntax
 
@@ -87,6 +91,7 @@ Show components only when conditions are met:
 ```
 if:git(git:branch git:status)     # only in git repos
 if:dirty(text:UNCOMMITTED)        # only when working tree is dirty
+if:subdir(fs:relative)            # only when in a subdirectory (not git root)
 if:node(env:node)                 # only in Node.js projects
 if:python(env:python)             # only in Python projects
 if:rust(emoji:rust)               # only in Rust projects
@@ -120,7 +125,7 @@ Available separators:
 - `powerline` → ``
 - `powerline-left` → ``
 - `space` → ` `
-- `none` → (empty)
+- `none` → (empty, useful for glueing components together)
 
 ## Components Reference
 
@@ -151,7 +156,7 @@ Available separators:
 | `ctx:emoji` | Status emoji (🟢🟡🟠🔴) |
 | `ctx:used-tokens` | Total used tokens |
 
-### Cost/Usage
+### Cost
 
 | Component | Description |
 |-----------|-------------|
@@ -163,6 +168,26 @@ Available separators:
 | `cost:added` | Lines added |
 | `cost:removed` | Lines removed |
 | `cost:lines-both` | Lines added and removed |
+
+### Usage/Limits
+
+Fetches your 5-hour and 7-day API utilization from Claude's OAuth API. Data is cached for 5 minutes in `$TMPDIR/claudeline-usage-cache.json`, shared across all sessions system-wide. The OAuth token is read automatically from macOS Keychain.
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| `usage:5h` | 5-hour utilization % | `12%` |
+| `usage:week` | 7-day utilization % | `58%` |
+| `usage:7d` | Alias for `usage:week` | `58%` |
+| `usage:5h-reset` | Time until 5h reset | `3h 32m` |
+| `usage:week-reset` | Time until weekly reset | `2d 5h` |
+| `usage:7d-reset` | Alias for `usage:week-reset` | `2d 5h` |
+| `usage:5h-bar` | 5h progress bar with H label | `H▰▰▱▱▱▱▱▱` |
+| `usage:5h-bar:N` | 5h bar with width N | `H▰▱▱▱▱` |
+| `usage:week-bar` | Weekly progress bar with W label | `W▰▰▰▰▰▱▱▱` |
+| `usage:week-bar:N` | Weekly bar with width N | `W▰▰▰▱▱` |
+| `usage:5h-emoji` | 5h status emoji (🟢🟡🟠🔴) | `🟢` |
+| `usage:week-emoji` | Weekly status emoji | `🟡` |
+| `usage:7d-emoji` | Alias for `usage:week-emoji` | `🟡` |
 
 ### File System
 
@@ -191,7 +216,8 @@ Available separators:
 | `git:staged` | Staged files (●N) |
 | `git:modified` | Modified files (+N) |
 | `git:untracked` | Untracked files (?N) |
-| `git:dirty` | Combined dirty status |
+| `git:dirty` | Combined dirty status with per-type colors (green staged, red untracked, yellow modified) |
+| `git:repo-branch` | Condensed `repo:branch` format |
 | `git:commit` | Short commit hash |
 | `git:commit-long` | Full commit hash |
 | `git:tag` | Current tag |
@@ -249,9 +275,31 @@ Available separators:
 | `time:minute` | Minute |
 | `time:elapsed` | Session elapsed time |
 
+### Nerd Font Icons
+
+Use `nerd:name` for Nerd Font glyphs. Requires a [Nerd Font](https://www.nerdfonts.com/) in your terminal.
+
+**Files:** `folder`, `folder-open`, `file`, `file-code`
+
+**Git:** `branch`, `repo`, `commit`, `merge`, `tag`, `stash`, `pr`, `diff`, `compare`
+
+**Status:** `check`, `x`, `warn`, `error`, `info`, `question`, `bell`, `pin`
+
+**Decorative:** `star`, `fire`, `rocket`, `sparkle`, `lightning`, `heart`, `diamond`, `circle`, `square`, `triangle`
+
+**Tech:** `node`, `python`, `rust`, `go`, `ruby`, `java`, `docker`, `terminal`, `code`, `database`, `cloud`, `server`, `package`, `gear`, `lock`, `unlock`, `key`, `shield`
+
+**Arrows:** `up`, `down`, `left`, `right`, `arrow-right`, `arrow-left`
+
+**Time:** `clock`, `calendar`, `history`
+
+**OS:** `apple`, `linux`, `windows`
+
+**Other:** `search`, `eye`, `bug`, `wrench`, `plug`, `wifi`, `bluetooth`, `cpu`, `memory`, `home`, `user`
+
 ### Emojis
 
-Use `emoji:name` for any of these:
+Use `emoji:name` for Unicode emojis (no Nerd Font required):
 
 **Files:** `folder` 📁, `file` 📄, `home` 🏠
 
@@ -319,7 +367,7 @@ When you run `--install`, claudeline updates your `~/.claude/settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "npx claudeline run 'claude:model fs:dir'",
+    "command": "npx claudeline run theme:luca",
     "padding": 0
   }
 }
@@ -337,6 +385,9 @@ npx claudeline --preview
 
 # Test with sample data
 echo '{"model":{"display_name":"Sonnet 4"}}' | npx claudeline run "claude:model fs:dir"
+
+# Test a theme
+echo '{"model":{"display_name":"Opus"}}' | npx claudeline run theme:dashboard
 ```
 
 ## Package Managers
