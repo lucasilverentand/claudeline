@@ -32,9 +32,20 @@ program
   .option('--disable-color', 'Disable color output')
   .action(async (format, options) => {
     try {
+      // Support "theme:name" as a shorthand for theme lookup
+      let formatStr = format;
+      if (format.startsWith('theme:')) {
+        const themeName = format.slice(6);
+        const theme = getTheme(themeName);
+        if (!theme) {
+          console.error(`Unknown theme: ${themeName}`);
+          process.exit(1);
+        }
+        formatStr = theme;
+      }
       const input = await readStdin();
       const data = JSON.parse(input);
-      const output = evaluateFormat(format, data, {
+      const output = evaluateFormat(formatStr, data, {
         noEmoji: options.disableEmoji ?? false,
         noColor: options.disableColor ?? false,
       });
@@ -119,6 +130,24 @@ Multiple style prefixes can be chained: bold:green:git:branch
         console.error(`Unknown theme: ${options.theme}`);
         console.error(`Available themes: ${Object.keys(THEMES).join(', ')}`);
         process.exit(1);
+      }
+      // When installing a theme, use theme:name so updates are picked up
+      if (options.install) {
+        const result = install(`theme:${options.theme}`, options.project, {
+          useBunx: options.useBunx,
+          useNpx: options.useNpx,
+          globalInstall: options.globalInstall,
+          noEmoji: !options.emoji,
+          noColor: !options.color,
+        });
+        if (result.success) {
+          console.log('✓ ' + result.message);
+          console.log('\nRestart Claude Code to see your new status line!');
+        } else {
+          console.error('✗ ' + result.message);
+          process.exit(1);
+        }
+        return;
       }
       formatStr = theme;
     }
