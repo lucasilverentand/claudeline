@@ -1,7 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as crypto from 'crypto';
 import { execSync } from 'child_process';
+import { getClaudeConfigDir } from './installer.js';
 
 interface UsageWindow {
   utilization: number;
@@ -38,12 +40,20 @@ interface CachedProfile {
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const PROFILE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-const CACHE_FILE = path.join(os.tmpdir(), 'claudeline-usage-cache.json');
-const PROFILE_CACHE_FILE = path.join(os.tmpdir(), 'claudeline-profile-cache.json');
 
-function readCache(): CachedUsage | null {
+function tokenHash(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex').slice(0, 12);
+}
+
+function getCacheFile(token: string, type: 'usage' | 'profile'): string {
+  const dir = path.join(getClaudeConfigDir(), 'cache');
+  try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ignore */ }
+  return path.join(dir, `claudeline-${type}-${tokenHash(token)}.json`);
+}
+
+function readCache(cacheFile: string): CachedUsage | null {
   try {
-    const raw = fs.readFileSync(CACHE_FILE, 'utf8');
+    const raw = fs.readFileSync(cacheFile, 'utf8');
     const cached: CachedUsage = JSON.parse(raw);
     if (Date.now() - cached.fetched_at < CACHE_TTL_MS) {
       return cached;
@@ -54,9 +64,9 @@ function readCache(): CachedUsage | null {
   return null;
 }
 
-function writeCache(data: UsageData): void {
+function writeCache(cacheFile: string, data: UsageData): void {
   try {
-    fs.writeFileSync(CACHE_FILE, JSON.stringify({ data, fetched_at: Date.now() }));
+    fs.writeFileSync(cacheFile, JSON.stringify({ data, fetched_at: Date.now() }));
   } catch {
     // ignore write errors
   }
@@ -81,10 +91,7 @@ function getOAuthToken(): string | null {
   }
 }
 
-function fetchUsage(): UsageData | null {
-  const token = getOAuthToken();
-  if (!token) return null;
-
+function fetchUsage(token: string): UsageData | null {
   try {
     const result = execSync(
       `curl -s --max-time 5 -H "Authorization: Bearer ${token}" -H "anthropic-beta: oauth-2025-04-20" "https://api.anthropic.com/api/oauth/usage"`,
@@ -101,12 +108,16 @@ function fetchUsage(): UsageData | null {
 }
 
 function getUsageData(): UsageData | null {
-  const cached = readCache();
+  const token = getOAuthToken();
+  if (!token) return null;
+
+  const cacheFile = getCacheFile(token, 'usage');
+  const cached = readCache(cacheFile);
   if (cached) return cached.data;
 
-  const data = fetchUsage();
+  const data = fetchUsage(token);
   if (data) {
-    writeCache(data);
+    writeCache(cacheFile, data);
   }
   return data;
 }
@@ -135,9 +146,9 @@ function makeBar(pct: number, width: number, label?: string): string {
   return label ? label + bar : bar;
 }
 
-function readProfileCache(): CachedProfile | null {
+function readProfileCache(cacheFile: string): CachedProfile | null {
   try {
-    const raw = fs.readFileSync(PROFILE_CACHE_FILE, 'utf8');
+    const raw = fs.readFileSync(cacheFile, 'utf8');
     const cached: CachedProfile = JSON.parse(raw);
     if (Date.now() - cached.fetched_at < PROFILE_CACHE_TTL_MS) {
       return cached;
@@ -148,18 +159,15 @@ function readProfileCache(): CachedProfile | null {
   return null;
 }
 
-function writeProfileCache(data: ProfileData): void {
+function writeProfileCache(cacheFile: string, data: ProfileData): void {
   try {
-    fs.writeFileSync(PROFILE_CACHE_FILE, JSON.stringify({ data, fetched_at: Date.now() }));
+    fs.writeFileSync(cacheFile, JSON.stringify({ data, fetched_at: Date.now() }));
   } catch {
     // ignore write errors
   }
 }
 
-function fetchProfile(): ProfileData | null {
-  const token = getOAuthToken();
-  if (!token) return null;
-
+function fetchProfile(token: string): ProfileData | null {
   try {
     const result = execSync(
       `curl -s --max-time 5 -H "Authorization: Bearer ${token}" -H "anthropic-beta: oauth-2025-04-20" "https://api.anthropic.com/api/oauth/profile"`,
@@ -176,12 +184,16 @@ function fetchProfile(): ProfileData | null {
 }
 
 function getProfileData(): ProfileData | null {
-  const cached = readProfileCache();
+  const token = getOAuthToken();
+  if (!token) return null;
+
+  const cacheFile = getCacheFile(token, 'profile');
+  const cached = readProfileCache(cacheFile);
   if (cached) return cached.data;
 
-  const data = fetchProfile();
+  const data = fetchProfile(token);
   if (data) {
-    writeProfileCache(data);
+    writeProfileCache(cacheFile, data);
   }
   return data;
 }

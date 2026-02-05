@@ -10,11 +10,15 @@ export interface InstallOptions {
   noColor?: boolean;
 }
 
+export function getClaudeConfigDir(): string {
+  return process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+}
+
 function getClaudeDir(project: boolean): string {
   if (project) {
     return path.join(process.cwd(), '.claude');
   }
-  return path.join(os.homedir(), '.claude');
+  return getClaudeConfigDir();
 }
 
 function escapeForShell(str: string): string {
