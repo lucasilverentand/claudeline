@@ -150,6 +150,40 @@ function formatTimeUntil(isoDate: string): string {
   return `${minutes}m`;
 }
 
+const FIVE_HOUR_MS = 5 * 60 * 60 * 1000;
+const SEVEN_DAY_MS = 7 * 24 * 60 * 60 * 1000;
+
+function calculatePace(window: UsageWindow, windowDurationMs: number): { target: number; delta: number } {
+  const resetMs = new Date(window.resets_at).getTime();
+  const remainingMs = Math.max(0, resetMs - Date.now());
+  const elapsedFraction = 1 - (remainingMs / windowDurationMs);
+  const target = elapsedFraction * 100;
+  const delta = window.utilization - target;
+  return { target, delta };
+}
+
+function paceColor(delta: number): string {
+  if (delta > 10) return '\x1b[33m'; // yellow — overpacing
+  if (delta < -10) return '\x1b[36m'; // cyan — underpacing
+  return '\x1b[32m'; // green — on pace
+}
+
+function formatPaceEmoji(delta: number, noColor: boolean): string {
+  const emoji = delta > 10 ? '⚡' : delta < -10 ? '🐢' : '✓';
+  if (noColor) return emoji;
+  return `${paceColor(delta)}${emoji}\x1b[0m`;
+}
+
+function formatPaceDelta(delta: number, noColor: boolean): string {
+  const rounded = Math.round(delta);
+  let text: string;
+  if (rounded > 0) text = '+' + rounded + '%';
+  else if (rounded < 0) text = rounded + '%';
+  else text = '±0%';
+  if (noColor) return text;
+  return `${paceColor(delta)}${text}\x1b[0m`;
+}
+
 function makeBar(pct: number, width: number, label?: string): string {
   const filled = Math.round((pct / 100) * width);
   const bar = '▰'.repeat(filled) + '▱'.repeat(width - filled);
@@ -230,7 +264,7 @@ export function evaluateAccountComponent(key: string): string {
   }
 }
 
-export function evaluateUsageComponent(key: string, args?: string): string {
+export function evaluateUsageComponent(key: string, args?: string, noColor = false): string {
   const data = getUsageData();
   if (!data) return '';
 
@@ -268,6 +302,33 @@ export function evaluateUsageComponent(key: string, args?: string): string {
       if (pct < 75) return '🟡';
       if (pct < 90) return '🟠';
       return '🔴';
+    }
+    case '5h-target': {
+      const { target } = calculatePace(data.five_hour, FIVE_HOUR_MS);
+      return Math.round(target) + '%';
+    }
+    case 'week-target':
+    case '7d-target': {
+      const { target } = calculatePace(data.seven_day, SEVEN_DAY_MS);
+      return Math.round(target) + '%';
+    }
+    case '5h-pace': {
+      const { delta } = calculatePace(data.five_hour, FIVE_HOUR_MS);
+      return formatPaceDelta(delta, noColor);
+    }
+    case 'week-pace':
+    case '7d-pace': {
+      const { delta } = calculatePace(data.seven_day, SEVEN_DAY_MS);
+      return formatPaceDelta(delta, noColor);
+    }
+    case '5h-pace-emoji': {
+      const { delta } = calculatePace(data.five_hour, FIVE_HOUR_MS);
+      return formatPaceEmoji(delta, noColor);
+    }
+    case 'week-pace-emoji':
+    case '7d-pace-emoji': {
+      const { delta } = calculatePace(data.seven_day, SEVEN_DAY_MS);
+      return formatPaceEmoji(delta, noColor);
     }
     default:
       return '';

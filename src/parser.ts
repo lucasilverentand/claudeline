@@ -212,6 +212,9 @@ export function listComponents(): void {
         '5h', 'week', '7d', '5h-reset', 'week-reset', '7d-reset',
         '5h-bar', '5h-bar:N', 'week-bar', 'week-bar:N',
         '5h-emoji', 'week-emoji',
+        '5h-target', 'week-target', '7d-target',
+        '5h-pace', 'week-pace', '7d-pace',
+        '5h-pace-emoji', 'week-pace-emoji', '7d-pace-emoji',
       ],
     },
     {

@@ -435,7 +435,7 @@ function evaluateComponent(
       result = evaluateEnvComponent(comp.key);
       break;
     case 'usage':
-      result = evaluateUsageComponent(comp.key, comp.args);
+      result = evaluateUsageComponent(comp.key, comp.args, options.noColor);
       break;
     case 'account':
       result = evaluateAccountComponent(comp.key);
