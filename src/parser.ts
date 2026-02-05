@@ -136,6 +136,10 @@ function parseComponent(token: string): ParsedComponent | null {
     return { type: 'emoji', key: parts[1] || '', styles };
   }
 
+  if (parts[0] === 'nerd') {
+    return { type: 'nerd', key: parts[1] || '', styles };
+  }
+
   if (parts[0] === 'sep') {
     return { type: 'sep', key: parts[1] || 'pipe', styles };
   }
@@ -177,7 +181,7 @@ export function listComponents(): void {
       items: [
         'branch', 'status', 'status-emoji', 'status-word', 'ahead', 'behind', 'ahead-behind',
         'stash', 'staged', 'modified', 'untracked', 'commit', 'commit-long', 'tag',
-        'remote', 'repo', 'user', 'email', 'remote-url',
+        'remote', 'repo', 'repo-branch', 'user', 'email', 'remote-url',
       ],
     },
     {
@@ -223,6 +227,21 @@ export function listComponents(): void {
         'sparkle', 'lightning', 'heart', 'diamond', 'circle', 'square', 'triangle',
         'node', 'python', 'rust', 'go', 'ruby', 'java', 'docker',
         'green', 'yellow', 'orange', 'red', 'up', 'down', 'clock', 'calendar', 'money',
+      ],
+    },
+    {
+      name: 'Nerd Font Icons',
+      prefix: 'nerd',
+      items: [
+        'folder', 'folder-open', 'file', 'file-code',
+        'branch', 'repo', 'commit', 'merge', 'tag', 'stash', 'pr', 'diff',
+        'check', 'x', 'warn', 'error', 'info',
+        'star', 'fire', 'rocket', 'sparkle', 'lightning', 'heart',
+        'node', 'python', 'rust', 'go', 'ruby', 'java', 'docker',
+        'terminal', 'code', 'database', 'cloud', 'server', 'package', 'gear',
+        'lock', 'key', 'shield', 'clock', 'calendar',
+        'apple', 'linux', 'windows',
+        'search', 'eye', 'bug', 'wrench', 'cpu', 'memory', 'home', 'user',
       ],
     },
     {

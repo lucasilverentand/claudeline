@@ -8,6 +8,7 @@ import { getEmoji } from './emojis.js';
 import { COLORS, RESET } from './colors.js';
 import type { ParsedComponent, ClaudeInput } from './types.js';
 import { evaluateUsageComponent } from './usage.js';
+import { getNerdIcon } from './nerdfonts.js';
 
 export interface RuntimeOptions {
   noEmoji: boolean;
@@ -94,7 +95,7 @@ function evaluateFsComponent(key: string, data: Partial<ClaudeInput>): string {
   }
 }
 
-function evaluateGitComponent(key: string): string {
+function evaluateGitComponent(key: string, noColor = false): string {
   switch (key) {
     case 'branch':
       return execCommand('git branch --show-current 2>/dev/null');
@@ -157,9 +158,16 @@ function evaluateGitComponent(key: string): string {
       const untracked = parseInt(execCommand('git ls-files --others --exclude-standard 2>/dev/null | wc -l')) || 0;
       if (staged === 0 && modified === 0 && untracked === 0) return '';
       const parts: string[] = [];
-      if (staged > 0) parts.push('+' + staged);
-      if (untracked > 0) parts.push('-' + untracked);
-      if (modified > 0) parts.push('~' + modified);
+      if (noColor) {
+        if (staged > 0) parts.push('+' + staged);
+        if (untracked > 0) parts.push('-' + untracked);
+        if (modified > 0) parts.push('~' + modified);
+      } else {
+        const r = `\x1b[${RESET}m`;
+        if (staged > 0) parts.push(`\x1b[${COLORS.green}m+${staged}${r}`);
+        if (untracked > 0) parts.push(`\x1b[${COLORS.red}m-${untracked}${r}`);
+        if (modified > 0) parts.push(`\x1b[${COLORS.yellow}m~${modified}${r}`);
+      }
       return parts.join(' ');
     }
     case 'commit':
@@ -172,6 +180,11 @@ function evaluateGitComponent(key: string): string {
       return execCommand('git remote 2>/dev/null').split('\n')[0] || '';
     case 'repo':
       return path.basename(execCommand('git rev-parse --show-toplevel 2>/dev/null'));
+    case 'repo-branch': {
+      const r = path.basename(execCommand('git rev-parse --show-toplevel 2>/dev/null'));
+      const b = execCommand('git branch --show-current 2>/dev/null');
+      return r && b ? `${r}:${b}` : r || b;
+    }
     case 'user':
       return execCommand('git config user.name 2>/dev/null');
     case 'email':
@@ -378,6 +391,10 @@ function evaluateCondition(condition: string): boolean {
       } catch {
         return false;
       }
+    case 'subdir': {
+      const root = execCommand('git rev-parse --show-toplevel 2>/dev/null');
+      return root !== '' && process.cwd() !== root;
+    }
     case 'node':
       return fs.existsSync('package.json');
     case 'python':
@@ -406,7 +423,7 @@ function evaluateComponent(
       result = evaluateFsComponent(comp.key, data);
       break;
     case 'git':
-      result = evaluateGitComponent(comp.key);
+      result = evaluateGitComponent(comp.key, options.noColor);
       break;
     case 'ctx':
       result = evaluateContextComponent(comp.key, data, comp.args);
@@ -428,6 +445,9 @@ function evaluateComponent(
       break;
     case 'emoji':
       result = options.noEmoji ? '' : getEmoji(comp.key);
+      break;
+    case 'nerd':
+      result = options.noEmoji ? '' : getNerdIcon(comp.key);
       break;
     case 'text':
       result = comp.key;
@@ -471,7 +491,7 @@ function evaluateComponents(
     const value = evaluateComponent(comp, data, options);
 
     // Add space between non-separator components
-    if (i > 0 && comp.type !== 'sep' && prev?.type !== 'sep' && value) {
+    if (i > 0 && comp.type !== 'sep' && comp.type !== 'conditional' && prev?.type !== 'sep' && value) {
       parts.push(' ');
     }
 
