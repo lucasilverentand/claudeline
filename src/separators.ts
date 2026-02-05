@@ -19,6 +19,10 @@ export const SEPARATORS: Record<string, string> = {
   diamond: ' ◇ ',
   star: ' ★ ',
 
+  // Line break
+  newline: '\n',
+  br: '\n',
+
   // Powerline-style
   powerline: '',
   'powerline-left': '',
