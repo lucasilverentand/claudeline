@@ -18,7 +18,7 @@ interface CachedUsage {
   fetched_at: number;
 }
 
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const CACHE_FILE = path.join(os.tmpdir(), 'claudeline-usage-cache.json');
 
 function readCache(): CachedUsage | null {
@@ -109,9 +109,10 @@ function formatTimeUntil(isoDate: string): string {
   return `${minutes}m`;
 }
 
-function makeBar(pct: number, width: number): string {
+function makeBar(pct: number, width: number, label?: string): string {
   const filled = Math.round((pct / 100) * width);
-  return '[' + '█'.repeat(filled) + '░'.repeat(width - filled) + ']';
+  const bar = '▰'.repeat(filled) + '▱'.repeat(width - filled);
+  return label ? label + bar : bar;
 }
 
 export function evaluateUsageComponent(key: string, args?: string): string {
@@ -131,12 +132,12 @@ export function evaluateUsageComponent(key: string, args?: string): string {
       return formatTimeUntil(data.seven_day.resets_at);
     case '5h-bar': {
       const width = args ? parseInt(args, 10) || 10 : 10;
-      return makeBar(data.five_hour.utilization, width);
+      return makeBar(data.five_hour.utilization, width, 'H');
     }
     case 'week-bar':
     case '7d-bar': {
       const width = args ? parseInt(args, 10) || 10 : 10;
-      return makeBar(data.seven_day.utilization, width);
+      return makeBar(data.seven_day.utilization, width, 'W');
     }
     case '5h-emoji': {
       const pct = data.five_hour.utilization;
