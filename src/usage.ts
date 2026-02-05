@@ -72,10 +72,20 @@ function writeCache(cacheFile: string, data: UsageData): void {
   }
 }
 
+function getKeychainService(): string {
+  const configDir = process.env.CLAUDE_CONFIG_DIR;
+  if (configDir) {
+    const suffix = crypto.createHash('sha256').update(configDir).digest('hex').slice(0, 8);
+    return `Claude Code-credentials-${suffix}`;
+  }
+  return 'Claude Code-credentials';
+}
+
 function getOAuthToken(): string | null {
   try {
+    const service = getKeychainService();
     const raw = execSync(
-      'security find-generic-password -s "Claude Code-credentials" -w 2>/dev/null',
+      `security find-generic-password -s "${service}" -w 2>/dev/null`,
       { encoding: 'utf8' }
     ).trim();
     // The keychain value is a JSON string containing the token
