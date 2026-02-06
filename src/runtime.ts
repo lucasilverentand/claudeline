@@ -47,7 +47,7 @@ function applyStyles(text: string, styles: string[], noColor: boolean): string {
 }
 
 // Component evaluators
-function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>): string {
+function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColor = false): string {
   switch (key) {
     case 'model':
       return data.model?.display_name || 'Claude';
@@ -61,6 +61,24 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>): strin
       return (data.session_id || '').slice(0, 8);
     case 'session-full':
       return data.session_id || '';
+    case 'effort': {
+      try {
+        const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        const effort = settings.effortLevel || '';
+        if (!effort || noColor) return effort;
+        const r = `\x1b[${RESET}m`;
+        const colors: Record<string, string> = {
+          low: COLORS.green,
+          medium: COLORS.yellow,
+          high: COLORS.red,
+        };
+        const code = colors[effort] || '';
+        return code ? `\x1b[${code}m${effort}${r}` : effort;
+      } catch {
+        return '';
+      }
+    }
     case 'style':
       return data.output_style?.name || 'default';
     default:
@@ -403,6 +421,15 @@ function evaluateCondition(condition: string): boolean {
       return fs.existsSync('Cargo.toml');
     case 'go':
       return fs.existsSync('go.mod');
+    case 'effort': {
+      try {
+        const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+        return !!settings.effortLevel;
+      } catch {
+        return false;
+      }
+    }
     default:
       return true;
   }
@@ -417,7 +444,7 @@ function evaluateComponent(
 
   switch (comp.type) {
     case 'claude':
-      result = evaluateClaudeComponent(comp.key, data);
+      result = evaluateClaudeComponent(comp.key, data, options.noColor);
       break;
     case 'fs':
       result = evaluateFsComponent(comp.key, data);
@@ -519,5 +546,5 @@ export function evaluateFormat(
   const components = parseFormat(format);
   const result = evaluateComponents(components, data, opts);
   // Ensure trailing ANSI reset so styles don't leak between renders
-  return opts.noColor ? result : result + `\x1b[0m`;
+  return opts.noColor ? result : `\x1b[0m` + result + `\x1b[0m`;
 }

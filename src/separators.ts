@@ -6,6 +6,7 @@ export const SEPARATORS: Record<string, string> = {
   chevron: ' › ',
   'chevron-left': ' ‹ ',
   dot: ' • ',
+  middot: ' · ',
   dash: ' - ',
   slash: ' / ',
   backslash: ' \\ ',
@@ -20,8 +21,8 @@ export const SEPARATORS: Record<string, string> = {
   star: ' ★ ',
 
   // Line break
-  newline: '\n',
-  br: '\n',
+  newline: '\x1b[0m\n\x1b[0m',
+  br: '\x1b[0m\n\x1b[0m',
 
   // Powerline-style
   powerline: '',

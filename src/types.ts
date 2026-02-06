@@ -6,6 +6,7 @@ export interface ClaudeInput {
   model: {
     id: string;
     display_name: string;
+    reasoning_effort?: string;
   };
   workspace: {
     current_dir: string;

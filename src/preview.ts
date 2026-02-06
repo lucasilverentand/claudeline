@@ -6,8 +6,9 @@ export const SAMPLE_DATA: ClaudeInput = {
   transcript_path: '/tmp/transcript.json',
   cwd: '/Users/demo/projects/myapp',
   model: {
-    id: 'claude-opus-4-1',
+    id: 'claude-opus-4-6',
     display_name: 'Opus',
+    reasoning_effort: 'high',
   },
   workspace: {
     current_dir: '/Users/demo/projects/myapp',
