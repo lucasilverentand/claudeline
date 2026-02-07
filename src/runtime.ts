@@ -64,9 +64,11 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
       return data.session_id || '';
     case 'effort': {
       try {
-        const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
-        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-        const effort = settings.effortLevel || 'high';
+        const globalPath = path.join(os.homedir(), '.claude', 'settings.json');
+        const projectPath = path.join(process.cwd(), '.claude', 'settings.json');
+        let effort = 'high';
+        try { effort = JSON.parse(fs.readFileSync(globalPath, 'utf8')).effortLevel || effort; } catch {}
+        try { effort = JSON.parse(fs.readFileSync(projectPath, 'utf8')).effortLevel || effort; } catch {}
         if (noColor) return effort;
         const r = `\x1b[${RESET}m`;
         const colors: Record<string, string> = {
