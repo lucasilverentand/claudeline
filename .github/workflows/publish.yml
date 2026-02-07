@@ -27,8 +27,6 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   publish-gpr:
     runs-on: ubuntu-latest
@@ -37,13 +35,8 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          registry-url: https://npm.pkg.github.com
-
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - run: npm publish --access public
+      - run: bun publish --access public --registry https://npm.pkg.github.com
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUN_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
