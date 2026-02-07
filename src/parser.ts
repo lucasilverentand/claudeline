@@ -163,7 +163,7 @@ export function listComponents(): void {
     {
       name: 'Context Window',
       prefix: 'ctx',
-      items: ['percent', 'remaining', 'tokens', 'in', 'out', 'size', 'bar', 'bar:N', 'emoji', 'used-tokens'],
+      items: ['percent', 'remaining', 'tokens', 'in', 'out', 'size', 'bar', 'bar:N', 'icon', 'used-tokens'],
     },
     {
       name: 'Cost/Usage',
@@ -179,7 +179,7 @@ export function listComponents(): void {
       name: 'Git',
       prefix: 'git',
       items: [
-        'branch', 'status', 'status-emoji', 'status-word', 'ahead', 'behind', 'ahead-behind',
+        'branch', 'status', 'status-icon', 'status-word', 'ahead', 'behind', 'ahead-behind',
         'stash', 'staged', 'modified', 'untracked', 'commit', 'commit-long', 'tag',
         'remote', 'repo', 'repo-branch', 'user', 'email', 'remote-url',
       ],
@@ -211,10 +211,10 @@ export function listComponents(): void {
       items: [
         '5h', 'week', '7d', '5h-reset', 'week-reset', '7d-reset',
         '5h-bar', '5h-bar:N', 'week-bar', 'week-bar:N',
-        '5h-emoji', 'week-emoji',
+        '5h-icon', 'week-icon',
         '5h-target', 'week-target', '7d-target',
         '5h-pace', 'week-pace', '7d-pace',
-        '5h-pace-emoji', 'week-pace-emoji', '7d-pace-emoji',
+        '5h-pace-icon', 'week-pace-icon', '7d-pace-icon',
       ],
     },
     {
@@ -224,17 +224,6 @@ export function listComponents(): void {
         'pipe', 'arrow', 'arrow-left', 'chevron', 'chevron-left', 'dot', 'dash', 'slash',
         'space', 'none', 'colon', 'double-colon', 'tilde', 'double-pipe', 'bullet',
         'diamond', 'star', 'powerline', 'powerline-left',
-      ],
-    },
-    {
-      name: 'Emojis',
-      prefix: 'emoji',
-      items: [
-        'folder', 'file', 'home', 'branch', 'git', 'commit', 'merge', 'tag', 'stash',
-        'check', 'x', 'warn', 'error', 'success', 'info', 'star', 'fire', 'rocket',
-        'sparkle', 'lightning', 'heart', 'diamond', 'circle', 'square', 'triangle',
-        'node', 'python', 'rust', 'go', 'ruby', 'java', 'docker',
-        'green', 'yellow', 'orange', 'red', 'up', 'down', 'clock', 'calendar', 'money',
       ],
     },
     {

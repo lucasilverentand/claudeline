@@ -6,7 +6,7 @@ export interface InstallOptions {
   useBunx?: boolean;
   useNpx?: boolean;
   globalInstall?: boolean;
-  noEmoji?: boolean;
+  noIcons?: boolean;
   noColor?: boolean;
 }
 
@@ -50,8 +50,8 @@ function buildCommand(format: string, options: InstallOptions): string {
   parts.push('run');
   parts.push(`'${escapeForShell(format)}'`);
 
-  if (options.noEmoji) {
-    parts.push('--disable-emoji');
+  if (options.noIcons) {
+    parts.push('--disable-icons');
   }
   if (options.noColor) {
     parts.push('--disable-color');

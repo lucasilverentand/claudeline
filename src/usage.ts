@@ -168,10 +168,10 @@ function paceColor(delta: number): string {
   return '\x1b[32m'; // green — on pace
 }
 
-function formatPaceEmoji(delta: number, noColor: boolean): string {
-  const emoji = delta > 10 ? '⚡' : delta < -10 ? '🐢' : '✓';
-  if (noColor) return emoji;
-  return `${paceColor(delta)}${emoji}\x1b[0m`;
+function formatPaceIcon(delta: number, noColor: boolean): string {
+  const icon = delta > 10 ? '\uf0e7' : delta < -10 ? '\uf017' : '\uf00c';
+  if (noColor) return icon;
+  return `${paceColor(delta)}${icon}\x1b[0m`;
 }
 
 function formatPaceDelta(delta: number, noColor: boolean): string {
@@ -288,20 +288,22 @@ export function evaluateUsageComponent(key: string, args?: string, noColor = fal
       const width = args ? parseInt(args, 10) || 10 : 10;
       return makeBar(data.seven_day.utilization, width, 'W');
     }
-    case '5h-emoji': {
+    case '5h-icon': {
       const pct = data.five_hour.utilization;
-      if (pct < 50) return '🟢';
-      if (pct < 75) return '🟡';
-      if (pct < 90) return '🟠';
-      return '🔴';
+      const icon = '\uf111';
+      if (pct < 50) return `\x1b[32m${icon}\x1b[0m`;
+      if (pct < 75) return `\x1b[33m${icon}\x1b[0m`;
+      if (pct < 90) return `\x1b[31m${icon}\x1b[0m`;
+      return `\x1b[1;31m${icon}\x1b[0m`;
     }
-    case 'week-emoji':
-    case '7d-emoji': {
+    case 'week-icon':
+    case '7d-icon': {
       const pct = data.seven_day.utilization;
-      if (pct < 50) return '🟢';
-      if (pct < 75) return '🟡';
-      if (pct < 90) return '🟠';
-      return '🔴';
+      const icon = '\uf111';
+      if (pct < 50) return `\x1b[32m${icon}\x1b[0m`;
+      if (pct < 75) return `\x1b[33m${icon}\x1b[0m`;
+      if (pct < 90) return `\x1b[31m${icon}\x1b[0m`;
+      return `\x1b[1;31m${icon}\x1b[0m`;
     }
     case '5h-target': {
       const { target } = calculatePace(data.five_hour, FIVE_HOUR_MS);
@@ -321,14 +323,14 @@ export function evaluateUsageComponent(key: string, args?: string, noColor = fal
       const { delta } = calculatePace(data.seven_day, SEVEN_DAY_MS);
       return formatPaceDelta(delta, noColor);
     }
-    case '5h-pace-emoji': {
+    case '5h-pace-icon': {
       const { delta } = calculatePace(data.five_hour, FIVE_HOUR_MS);
-      return formatPaceEmoji(delta, noColor);
+      return formatPaceIcon(delta, noColor);
     }
-    case 'week-pace-emoji':
-    case '7d-pace-emoji': {
+    case 'week-pace-icon':
+    case '7d-pace-icon': {
       const { delta } = calculatePace(data.seven_day, SEVEN_DAY_MS);
-      return formatPaceEmoji(delta, noColor);
+      return formatPaceIcon(delta, noColor);
     }
     default:
       return '';

@@ -4,14 +4,13 @@ import * as fs from 'fs';
 import { execSync } from 'child_process';
 import { parseFormat } from './parser.js';
 import { getSeparator } from './separators.js';
-import { getEmoji } from './emojis.js';
 import { COLORS, RESET } from './colors.js';
 import type { ParsedComponent, ClaudeInput } from './types.js';
 import { evaluateUsageComponent, evaluateAccountComponent } from './usage.js';
-import { getNerdIcon } from './nerdfonts.js';
+import { getNerdIcon, detectNerdFont } from './nerdfonts.js';
 
 export interface RuntimeOptions {
-  noEmoji: boolean;
+  noIcons: boolean;
   noColor: boolean;
 }
 
@@ -124,12 +123,12 @@ function evaluateGitComponent(key: string, noColor = false): string {
       } catch {
         return '*';
       }
-    case 'status-emoji':
+    case 'status-icon':
       try {
         execSync('git diff --quiet 2>/dev/null');
-        return '✨';
+        return getNerdIcon('sparkle');
       } catch {
-        return '📝';
+        return getNerdIcon('commit');
       }
     case 'status-word':
       try {
@@ -238,12 +237,13 @@ function evaluateContextComponent(key: string, data: Partial<ClaudeInput>, args?
       const filled = Math.round((pct / 100) * width);
       return '[' + '█'.repeat(filled) + '░'.repeat(width - filled) + ']';
     }
-    case 'emoji': {
+    case 'icon': {
       const pct = ctx?.used_percentage || 0;
-      if (pct < 50) return '🟢';
-      if (pct < 75) return '🟡';
-      if (pct < 90) return '🟠';
-      return '🔴';
+      const icon = getNerdIcon('circle');
+      if (pct < 50) return `\x1b[${COLORS.green}m${icon}\x1b[${RESET}m`;
+      if (pct < 75) return `\x1b[${COLORS.yellow}m${icon}\x1b[${RESET}m`;
+      if (pct < 90) return `\x1b[${COLORS.red}m${icon}\x1b[${RESET}m`;
+      return `\x1b[${COLORS.red};${COLORS.bold}m${icon}\x1b[${RESET}m`;
     }
     case 'used-tokens': {
       const used = (ctx?.total_input_tokens || 0) + (ctx?.total_output_tokens || 0);
@@ -474,10 +474,8 @@ function evaluateComponent(
       result = getSeparator(comp.key);
       break;
     case 'emoji':
-      result = options.noEmoji ? '' : getEmoji(comp.key);
-      break;
     case 'nerd':
-      result = options.noEmoji ? '' : getNerdIcon(comp.key);
+      result = options.noIcons ? '' : getNerdIcon(comp.key);
       break;
     case 'text':
       result = comp.key;
@@ -539,7 +537,7 @@ export function evaluateFormat(
   options: Partial<RuntimeOptions> = {}
 ): string {
   const opts: RuntimeOptions = {
-    noEmoji: options.noEmoji ?? false,
+    noIcons: options.noIcons ?? !detectNerdFont(),
     noColor: options.noColor ?? false,
   };
 

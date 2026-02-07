@@ -29,7 +29,8 @@ async function readStdin(): Promise<string> {
 program
   .command('run <format>')
   .description('Evaluate a format string and output the status line')
-  .option('--disable-emoji', 'Disable emoji output')
+  .option('--disable-icons', 'Disable icon output')
+  .option('--disable-emoji', 'Disable icon output (alias for --disable-icons)')
   .option('--disable-color', 'Disable color output')
   .action(async (format, options) => {
     try {
@@ -46,9 +47,10 @@ program
       }
       const input = await readStdin();
       const data = JSON.parse(input);
+      const noIcons = options.disableIcons || options.disableEmoji || undefined;
       const output = evaluateFormat(formatStr, data, {
-        noEmoji: options.disableEmoji ?? false,
-        noColor: options.disableColor ?? false,
+        noIcons,
+        noColor: options.disableColor || undefined,
       });
       console.log(output);
     } catch (e) {
@@ -69,7 +71,8 @@ program
   .option('-l, --list', 'List all available components')
   .option('--themes', 'List all available themes')
   .option('-p, --preview', 'Show sample JSON data for testing')
-  .option('--no-emoji', 'Disable emoji output')
+  .option('--no-icons', 'Disable icon output')
+  .option('--no-emoji', 'Disable icon output (alias for --no-icons)')
   .option('--no-color', 'Disable color output')
   .option('--use-bunx', 'Use bunx in installed command')
   .option('--use-npx', 'Use npx in installed command')
@@ -88,7 +91,7 @@ Format Syntax:
   component       Single component (e.g., fs:dir, git:branch)
   prefix:comp     Styled component (e.g., green:git:branch, bold:red:text:ERROR)
   sep:name        Separator (e.g., sep:pipe, sep:arrow)
-  emoji:name      Emoji (e.g., emoji:folder, emoji:branch)
+  nerd:name       Nerd Font icon (e.g., nerd:folder, nerd:branch)
   text:value      Custom text (e.g., text:Hello)
   [...]           Group with square brackets
   if:cond(...)    Conditional (e.g., if:git(git:branch))
@@ -138,7 +141,7 @@ Multiple style prefixes can be chained: bold:green:git:branch
           useBunx: options.useBunx,
           useNpx: options.useNpx,
           globalInstall: options.globalInstall,
-          noEmoji: !options.emoji,
+          noIcons: !options.icons || !options.emoji,
           noColor: !options.color,
         });
         if (result.success) {
@@ -172,7 +175,7 @@ Multiple style prefixes can be chained: bold:green:git:branch
         useBunx: options.useBunx,
         useNpx: options.useNpx,
         globalInstall: options.globalInstall,
-        noEmoji: !options.emoji,
+        noIcons: !options.icons || !options.emoji,
         noColor: !options.color,
       });
       if (result.success) {

@@ -58,6 +58,12 @@ export const NERD_ICONS: Record<string, string> = {
   'key': '\uf084',
   'shield': '\uf132',
 
+  // Context indicators (colored circles)
+  'circle-green': '\uf111',
+  'circle-yellow': '\uf111',
+  'circle-orange': '\uf111',
+  'circle-red': '\uf111',
+
   // Arrows
   'up': '\uf062',
   'down': '\uf063',
@@ -94,6 +100,54 @@ export const NERD_ICONS: Record<string, string> = {
   'user': '\uf007',
 };
 
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+let nfGlyphs: Record<string, string> | null = null;
+
+function loadNfGlyphs(): Record<string, string> {
+  if (nfGlyphs) return nfGlyphs;
+  try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
+    const jsonPath = join(__dirname, 'data', 'nf-glyphs.json');
+    nfGlyphs = JSON.parse(readFileSync(jsonPath, 'utf8'));
+    return nfGlyphs!;
+  } catch {
+    nfGlyphs = {};
+    return nfGlyphs;
+  }
+}
+
 export function getNerdIcon(name: string): string {
-  return NERD_ICONS[name] || '';
+  // Check curated icons first
+  if (NERD_ICONS[name]) return NERD_ICONS[name];
+
+  // Support nf-* class names (e.g., nf-fa-brain, nf-md-brain)
+  if (name.startsWith('nf-')) {
+    const glyphs = loadNfGlyphs();
+    const key = name.slice(3); // strip "nf-" prefix
+    const code = glyphs[key];
+    if (code) return String.fromCodePoint(parseInt(code, 16));
+  }
+
+  return '';
+}
+
+export function detectNerdFont(): boolean {
+  // Explicit opt-in/out via env var
+  const explicit = process.env.CLAUDELINE_NERD_FONT ?? process.env.NERD_FONT;
+  if (explicit !== undefined) {
+    return explicit === '1' || explicit.toLowerCase() === 'true';
+  }
+
+  // Known nerd-font-friendly terminals
+  const termProgram = (process.env.TERM_PROGRAM || '').toLowerCase();
+  const nerdFriendly = ['kitty', 'wezterm', 'alacritty', 'iterm.app', 'hyper', 'ghostty'];
+  if (nerdFriendly.some(t => termProgram.includes(t))) {
+    return true;
+  }
+
+  // Default to true — power-user CLI tool, most users will have nerd fonts
+  return true;
 }
