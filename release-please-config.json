@@ -1,7 +1,14 @@
 {
   "packages": {
     ".": {
-      "release-type": "node"
+      "release-type": "node",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": ".claude-plugin/plugin.json",
+          "jsonpath": "$.version"
+        }
+      ]
     }
   },
   "last-release-sha": "9cadf2bdefb7658fc9130edf9d8c3542d15a9481"
