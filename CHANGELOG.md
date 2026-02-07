@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.1](https://github.com/lucasilverentand/claudeline/compare/v1.6.0...v1.6.1) (2026-02-07)
+
+
+### Bug Fixes
+
+* prevent dim attribute leaking across styled components ([#4](https://github.com/lucasilverentand/claudeline/issues/4)) ([210e762](https://github.com/lucasilverentand/claudeline/commit/210e762df2edb047961d607055d478a2405531c5))
+
 ## [1.6.0](https://github.com/lucasilverentand/claudeline/compare/v1.5.1...v1.6.0) (2026-02-07)
 
 
