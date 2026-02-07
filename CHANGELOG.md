@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.6.0](https://github.com/lucasilverentand/claudeline/compare/v1.5.1...v1.6.0) (2026-02-07)
+
+
+### Features
+
+* replace emoji icons with Nerd Font glyphs and add nf-* class name support ([5cdc978](https://github.com/lucasilverentand/claudeline/commit/5cdc9780e8af8d9d3b1b2f0075cb09fa92cd00eb))
+
+
+### Bug Fixes
+
+* show effort level when set to high (default) ([1d757e0](https://github.com/lucasilverentand/claudeline/commit/1d757e0f821cbd84b38fc477b7758855dbf82d18))
+
 ## [1.5.1](https://github.com/lucasilverentand/claudeline/compare/v1.5.0...v1.5.1) (2026-02-07)
 
 
