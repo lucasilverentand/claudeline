@@ -15,6 +15,11 @@ bun run dev
 bun install
 ```
 
+## Conventions
+
+- Use [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages (e.g., `feat:`, `fix:`, `chore:`, `docs:`, `ci:`, `refactor:`)
+- This is required for release-please to generate correct changelogs and version bumps
+
 ## Architecture
 
 claudeline is a CLI tool that generates customizable status line scripts for Claude Code. It works by:
