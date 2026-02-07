@@ -64,8 +64,8 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
       try {
         const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
         const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-        const effort = settings.effortLevel || '';
-        if (!effort || noColor) return effort;
+        const effort = settings.effortLevel || 'high';
+        if (noColor) return effort;
         const r = `\x1b[${RESET}m`;
         const colors: Record<string, string> = {
           low: COLORS.green,
@@ -422,13 +422,7 @@ function evaluateCondition(condition: string): boolean {
     case 'go':
       return fs.existsSync('go.mod');
     case 'effort': {
-      try {
-        const settingsPath = path.join(os.homedir(), '.claude', 'settings.json');
-        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-        return !!settings.effortLevel;
-      } catch {
-        return false;
-      }
+      return true;
     }
     default:
       return true;
