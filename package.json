@@ -12,8 +12,8 @@
     ".claude-plugin"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --clean",
-    "dev": "tsup src/index.ts --format esm --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "prepublishOnly": "bun run build"
   },
   "keywords": [

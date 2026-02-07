@@ -7,7 +7,8 @@ import { install, uninstall } from './installer.js';
 import { getSampleDataJson } from './preview.js';
 import { evaluateFormat } from './runtime.js';
 
-const VERSION = '1.4.0';
+declare const PACKAGE_VERSION: string;
+const VERSION = PACKAGE_VERSION;
 
 // Helper to read stdin
 async function readStdin(): Promise<string> {
