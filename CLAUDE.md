@@ -30,6 +30,7 @@ claudeline is a CLI tool that generates customizable status line scripts for Cla
 
 ### Key Files
 
+- `tsup.config.ts` - Build config; injects `PACKAGE_VERSION` from package.json at build time
 - `src/index.ts` - CLI entry point using Commander.js
 - `src/parser.ts` - Parses format strings into `ParsedComponent[]` AST with support for styles, groups, and conditionals
 - `src/generator.ts` - Transforms AST into executable Node.js script with proper imports and error handling
