@@ -1,6 +1,6 @@
 {
   "name": "claudeline",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Customizable status line generator for Claude Code",
   "type": "module",
   "bin": {
