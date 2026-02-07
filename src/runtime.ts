@@ -42,7 +42,9 @@ function applyStyles(text: string, styles: string[], noColor: boolean): string {
   const codes = styles.map(s => COLORS[s]).filter(Boolean);
   if (codes.length === 0) return text;
 
-  return `\x1b[${codes.join(';')}m${text}\x1b[${RESET}m`;
+  // Use \x1b[0;...m to reset all attributes before applying new ones,
+  // preventing residual attributes (e.g., dim) from leaking across components
+  return `\x1b[0;${codes.join(';')}m${text}\x1b[${RESET}m`;
 }
 
 // Component evaluators
@@ -73,7 +75,7 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
           high: COLORS.red,
         };
         const code = colors[effort] || '';
-        return code ? `\x1b[${code}m${effort}${r}` : effort;
+        return code ? `\x1b[0;${code}m${effort}${r}` : effort;
       } catch {
         return '';
       }
@@ -181,9 +183,9 @@ function evaluateGitComponent(key: string, noColor = false): string {
         if (modified > 0) parts.push('~' + modified);
       } else {
         const r = `\x1b[${RESET}m`;
-        if (staged > 0) parts.push(`\x1b[${COLORS.green}m+${staged}${r}`);
-        if (untracked > 0) parts.push(`\x1b[${COLORS.red}m-${untracked}${r}`);
-        if (modified > 0) parts.push(`\x1b[${COLORS.yellow}m~${modified}${r}`);
+        if (staged > 0) parts.push(`\x1b[0;${COLORS.green}m+${staged}${r}`);
+        if (untracked > 0) parts.push(`\x1b[0;${COLORS.red}m-${untracked}${r}`);
+        if (modified > 0) parts.push(`\x1b[0;${COLORS.yellow}m~${modified}${r}`);
       }
       return parts.join(' ');
     }
@@ -240,10 +242,10 @@ function evaluateContextComponent(key: string, data: Partial<ClaudeInput>, args?
     case 'icon': {
       const pct = ctx?.used_percentage || 0;
       const icon = getNerdIcon('circle');
-      if (pct < 50) return `\x1b[${COLORS.green}m${icon}\x1b[${RESET}m`;
-      if (pct < 75) return `\x1b[${COLORS.yellow}m${icon}\x1b[${RESET}m`;
-      if (pct < 90) return `\x1b[${COLORS.red}m${icon}\x1b[${RESET}m`;
-      return `\x1b[${COLORS.red};${COLORS.bold}m${icon}\x1b[${RESET}m`;
+      if (pct < 50) return `\x1b[0;${COLORS.green}m${icon}\x1b[${RESET}m`;
+      if (pct < 75) return `\x1b[0;${COLORS.yellow}m${icon}\x1b[${RESET}m`;
+      if (pct < 90) return `\x1b[0;${COLORS.red}m${icon}\x1b[${RESET}m`;
+      return `\x1b[0;${COLORS.red};${COLORS.bold}m${icon}\x1b[${RESET}m`;
     }
     case 'used-tokens': {
       const used = (ctx?.total_input_tokens || 0) + (ctx?.total_output_tokens || 0);
@@ -538,5 +540,5 @@ export function evaluateFormat(
   const components = parseFormat(format);
   const result = evaluateComponents(components, data, opts);
   // Ensure trailing ANSI reset so styles don't leak between renders
-  return opts.noColor ? result : `\x1b[0m` + result + `\x1b[0m`;
+  return opts.noColor ? result : result + `\x1b[0m`;
 }

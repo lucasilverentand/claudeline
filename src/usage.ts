@@ -163,9 +163,9 @@ function calculatePace(window: UsageWindow, windowDurationMs: number): { target:
 }
 
 function paceColor(delta: number): string {
-  if (delta > 10) return '\x1b[33m'; // yellow — overpacing
-  if (delta < -10) return '\x1b[36m'; // cyan — underpacing
-  return '\x1b[32m'; // green — on pace
+  if (delta > 10) return '\x1b[0;33m'; // yellow — overpacing
+  if (delta < -10) return '\x1b[0;36m'; // cyan — underpacing
+  return '\x1b[0;32m'; // green — on pace
 }
 
 function formatPaceIcon(delta: number, noColor: boolean): string {
@@ -291,19 +291,19 @@ export function evaluateUsageComponent(key: string, args?: string, noColor = fal
     case '5h-icon': {
       const pct = data.five_hour.utilization;
       const icon = '\uf111';
-      if (pct < 50) return `\x1b[32m${icon}\x1b[0m`;
-      if (pct < 75) return `\x1b[33m${icon}\x1b[0m`;
-      if (pct < 90) return `\x1b[31m${icon}\x1b[0m`;
-      return `\x1b[1;31m${icon}\x1b[0m`;
+      if (pct < 50) return `\x1b[0;32m${icon}\x1b[0m`;
+      if (pct < 75) return `\x1b[0;33m${icon}\x1b[0m`;
+      if (pct < 90) return `\x1b[0;31m${icon}\x1b[0m`;
+      return `\x1b[0;1;31m${icon}\x1b[0m`;
     }
     case 'week-icon':
     case '7d-icon': {
       const pct = data.seven_day.utilization;
       const icon = '\uf111';
-      if (pct < 50) return `\x1b[32m${icon}\x1b[0m`;
-      if (pct < 75) return `\x1b[33m${icon}\x1b[0m`;
-      if (pct < 90) return `\x1b[31m${icon}\x1b[0m`;
-      return `\x1b[1;31m${icon}\x1b[0m`;
+      if (pct < 50) return `\x1b[0;32m${icon}\x1b[0m`;
+      if (pct < 75) return `\x1b[0;33m${icon}\x1b[0m`;
+      if (pct < 90) return `\x1b[0;31m${icon}\x1b[0m`;
+      return `\x1b[0;1;31m${icon}\x1b[0m`;
     }
     case '5h-target': {
       const { target } = calculatePace(data.five_hour, FIVE_HOUR_MS);

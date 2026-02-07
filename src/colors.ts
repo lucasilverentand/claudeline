@@ -79,5 +79,5 @@ export function previewColor(text: string, styles: string[]): string {
 
   if (codes.length === 0) return text;
 
-  return `\x1b[${codes.join(';')}m${text}\x1b[${RESET}m`;
+  return `\x1b[0;${codes.join(';')}m${text}\x1b[${RESET}m`;
 }
