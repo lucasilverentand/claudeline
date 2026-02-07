@@ -3,5 +3,6 @@
     ".": {
       "release-type": "node"
     }
-  }
+  },
+  "last-release-sha": "9cadf2bdefb7658fc9130edf9d8c3542d15a9481"
 }
