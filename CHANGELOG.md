@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.2](https://github.com/lucasilverentand/claudeline/compare/v1.6.1...v1.6.2) (2026-02-07)
+
+
+### Bug Fixes
+
+* read effort level from project-level settings ([8445e60](https://github.com/lucasilverentand/claudeline/commit/8445e60c56565867f1d77890ab9ebfd1e2691305))
+
 ## [1.6.1](https://github.com/lucasilverentand/claudeline/compare/v1.6.0...v1.6.1) (2026-02-07)
 
 
