@@ -40,6 +40,7 @@ interface CachedProfile {
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const PROFILE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const ANTHROPIC_BETA_HEADER = 'oauth-2025-04-20';
 
 function tokenHash(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex').slice(0, 12);
@@ -81,32 +82,77 @@ function getKeychainService(): string {
   return 'Claude Code-credentials';
 }
 
-function getOAuthToken(): string | null {
+function extractToken(raw: string): string | null {
   try {
-    const service = getKeychainService();
-    const raw = execSync(
-      `security find-generic-password -s "${service}" -w 2>/dev/null`,
-      { encoding: 'utf8' }
-    ).trim();
-    // The keychain value is a JSON string containing the token
     const parsed = JSON.parse(raw);
     if (typeof parsed === 'string') return parsed;
     // Handle nested structure: { claudeAiOauth: { accessToken: "..." } }
     if (parsed.claudeAiOauth?.accessToken) return parsed.claudeAiOauth.accessToken;
     if (parsed.accessToken) return parsed.accessToken;
     if (parsed.access_token) return parsed.access_token;
-    return null;
+  } catch {
+    // not valid JSON
+  }
+  return null;
+}
+
+function getOAuthTokenMacOS(): string | null {
+  try {
+    const service = getKeychainService();
+    const raw = execSync(
+      `security find-generic-password -s "${service}" -w 2>/dev/null`,
+      { encoding: 'utf8' }
+    ).trim();
+    return extractToken(raw);
   } catch {
     return null;
   }
 }
 
+function getOAuthTokenLinux(): string | null {
+  try {
+    const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const credPath = path.join(configDir, '.credentials.json');
+    const raw = fs.readFileSync(credPath, 'utf8').trim();
+    return extractToken(raw);
+  } catch {
+    return null;
+  }
+}
+
+function getOAuthToken(): string | null {
+  switch (process.platform) {
+    case 'darwin':
+      return getOAuthTokenMacOS();
+    case 'linux':
+      return getOAuthTokenLinux();
+    default:
+      return null;
+  }
+}
+
+function apiGet(token: string, urlPath: string): string | null {
+  try {
+    return execSync(
+      `curl -s --max-time 5 -H "Authorization: Bearer $__CLAUDE_TOKEN" -H "anthropic-beta: ${ANTHROPIC_BETA_HEADER}" "https://api.anthropic.com${urlPath}"`,
+      { encoding: 'utf8', env: { ...process.env, __CLAUDE_TOKEN: token } }
+    ).trim();
+  } catch {
+    return null;
+  }
+}
+
+function apiGetWithRetry(token: string, urlPath: string): string | null {
+  const result = apiGet(token, urlPath);
+  if (result !== null) return result;
+  // Retry once on failure
+  return apiGet(token, urlPath);
+}
+
 function fetchUsage(token: string): UsageData | null {
   try {
-    const result = execSync(
-      `curl -s --max-time 5 -H "Authorization: Bearer ${token}" -H "anthropic-beta: oauth-2025-04-20" "https://api.anthropic.com/api/oauth/usage"`,
-      { encoding: 'utf8' }
-    ).trim();
+    const result = apiGetWithRetry(token, '/api/oauth/usage');
+    if (!result) return null;
     const data = JSON.parse(result);
     if (data.five_hour && data.seven_day) {
       return data as UsageData;
@@ -213,10 +259,8 @@ function writeProfileCache(cacheFile: string, data: ProfileData): void {
 
 function fetchProfile(token: string): ProfileData | null {
   try {
-    const result = execSync(
-      `curl -s --max-time 5 -H "Authorization: Bearer ${token}" -H "anthropic-beta: oauth-2025-04-20" "https://api.anthropic.com/api/oauth/profile"`,
-      { encoding: 'utf8' }
-    ).trim();
+    const result = apiGetWithRetry(token, '/api/oauth/profile');
+    if (!result) return null;
     const data = JSON.parse(result);
     if (data.account?.email) {
       return data as ProfileData;

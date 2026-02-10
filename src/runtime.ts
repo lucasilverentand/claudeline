@@ -47,8 +47,53 @@ function applyStyles(text: string, styles: string[], noColor: boolean): string {
   return `\x1b[0;${codes.join(';')}m${text}\x1b[${RESET}m`;
 }
 
+// In-memory settings cache (10-second TTL) for effort-level disk fallback
+const settingsCache = new Map<string, { data: Record<string, unknown>; ts: number }>();
+const SETTINGS_CACHE_TTL = 10_000;
+
+function readSettingsFile(filePath: string): Record<string, unknown> {
+  const cached = settingsCache.get(filePath);
+  if (cached && Date.now() - cached.ts < SETTINGS_CACHE_TTL) {
+    return cached.data;
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    settingsCache.set(filePath, { data, ts: Date.now() });
+    return data;
+  } catch {
+    return {};
+  }
+}
+
+const VALID_EFFORTS = ['low', 'medium', 'high'] as const;
+
+function resolveEffort(data: Partial<ClaudeInput>): string {
+  // Primary: use runtime value from stdin (authoritative per-session value)
+  const stdinEffort = data.model?.reasoning_effort;
+  if (stdinEffort && VALID_EFFORTS.includes(stdinEffort as typeof VALID_EFFORTS[number])) {
+    return stdinEffort;
+  }
+  // Fallback: read from settings files on disk (cached)
+  let effort = 'high';
+  const globalPath = path.join(os.homedir(), '.claude', 'settings.json');
+  const globalSettings = readSettingsFile(globalPath);
+  if (typeof globalSettings.effortLevel === 'string' && VALID_EFFORTS.includes(globalSettings.effortLevel as typeof VALID_EFFORTS[number])) {
+    effort = globalSettings.effortLevel;
+  }
+  // Project-level overrides global; use project_dir from stdin, not process.cwd()
+  const projectDir = data.workspace?.project_dir;
+  if (projectDir) {
+    const projectPath = path.join(projectDir, '.claude', 'settings.json');
+    const projectSettings = readSettingsFile(projectPath);
+    if (typeof projectSettings.effortLevel === 'string' && VALID_EFFORTS.includes(projectSettings.effortLevel as typeof VALID_EFFORTS[number])) {
+      effort = projectSettings.effortLevel;
+    }
+  }
+  return effort;
+}
+
 // Component evaluators
-function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColor = false): string {
+function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColor = false, noIcons = false): string {
   switch (key) {
     case 'model':
       return data.model?.display_name || 'Claude';
@@ -62,25 +107,20 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
       return (data.session_id || '').slice(0, 8);
     case 'session-full':
       return data.session_id || '';
-    case 'effort': {
-      try {
-        const globalPath = path.join(os.homedir(), '.claude', 'settings.json');
-        const projectPath = path.join(process.cwd(), '.claude', 'settings.json');
-        let effort = 'high';
-        try { effort = JSON.parse(fs.readFileSync(globalPath, 'utf8')).effortLevel || effort; } catch {}
-        try { effort = JSON.parse(fs.readFileSync(projectPath, 'utf8')).effortLevel || effort; } catch {}
-        if (noColor) return effort;
-        const r = `\x1b[${RESET}m`;
-        const colors: Record<string, string> = {
-          low: COLORS.green,
-          medium: COLORS.yellow,
-          high: COLORS.red,
-        };
-        const code = colors[effort] || '';
-        return code ? `\x1b[0;${code}m${effort}${r}` : effort;
-      } catch {
-        return '';
-      }
+    case 'effort':
+    case 'effort-icon': {
+      const effort = resolveEffort(data);
+      if (key === 'effort-icon' && noIcons) return '';
+      const text = key === 'effort-icon' ? '\u{f09d1}' : effort;
+      if (noColor) return text;
+      const r = `\x1b[${RESET}m`;
+      const effortColors: Record<string, string> = {
+        low: COLORS.green,
+        medium: COLORS.yellow,
+        high: COLORS.red,
+      };
+      const code = effortColors[effort] || '';
+      return code ? `\x1b[0;${code}m${text}${r}` : text;
     }
     case 'style':
       return data.output_style?.name || 'default';
@@ -116,7 +156,7 @@ function evaluateFsComponent(key: string, data: Partial<ClaudeInput>): string {
   }
 }
 
-function evaluateGitComponent(key: string, noColor = false): string {
+function evaluateGitComponent(key: string, noColor = false, noIcons = false): string {
   switch (key) {
     case 'branch':
       return execCommand('git branch --show-current 2>/dev/null');
@@ -128,6 +168,7 @@ function evaluateGitComponent(key: string, noColor = false): string {
         return '*';
       }
     case 'status-icon':
+      if (noIcons) return '';
       try {
         execSync('git diff --quiet 2>/dev/null');
         return getNerdIcon('sparkle');
@@ -217,7 +258,7 @@ function evaluateGitComponent(key: string, noColor = false): string {
   }
 }
 
-function evaluateContextComponent(key: string, data: Partial<ClaudeInput>, args?: string): string {
+function evaluateContextComponent(key: string, data: Partial<ClaudeInput>, args?: string, noIcons = false): string {
   const ctx = data.context_window;
   switch (key) {
     case 'percent':
@@ -242,6 +283,7 @@ function evaluateContextComponent(key: string, data: Partial<ClaudeInput>, args?
       return '[' + '█'.repeat(filled) + '░'.repeat(width - filled) + ']';
     }
     case 'icon': {
+      if (noIcons) return '';
       const pct = ctx?.used_percentage || 0;
       const icon = getNerdIcon('circle');
       if (pct < 50) return `\x1b[0;${COLORS.green}m${icon}\x1b[${RESET}m`;
@@ -390,7 +432,7 @@ function evaluateTimeComponent(key: string, data: Partial<ClaudeInput>): string 
   }
 }
 
-function evaluateCondition(condition: string): boolean {
+function evaluateCondition(condition: string, data: Partial<ClaudeInput>): boolean {
   switch (condition) {
     case 'git':
       try {
@@ -415,16 +457,36 @@ function evaluateCondition(condition: string): boolean {
       }
     case 'subdir': {
       const root = execCommand('git rev-parse --show-toplevel 2>/dev/null');
-      return root !== '' && process.cwd() !== root;
+      const currentDir = data.workspace?.current_dir || process.cwd();
+      return root !== '' && currentDir !== root;
     }
-    case 'node':
-      return fs.existsSync('package.json');
-    case 'python':
+    case 'node': {
+      const projectDir = data.workspace?.project_dir;
+      return projectDir
+        ? fs.existsSync(path.join(projectDir, 'package.json'))
+        : fs.existsSync('package.json');
+    }
+    case 'python': {
+      const projectDir = data.workspace?.project_dir;
+      if (projectDir) {
+        return fs.existsSync(path.join(projectDir, 'pyproject.toml'))
+          || fs.existsSync(path.join(projectDir, 'setup.py'))
+          || fs.existsSync(path.join(projectDir, 'requirements.txt'));
+      }
       return fs.existsSync('pyproject.toml') || fs.existsSync('setup.py') || fs.existsSync('requirements.txt');
-    case 'rust':
-      return fs.existsSync('Cargo.toml');
-    case 'go':
-      return fs.existsSync('go.mod');
+    }
+    case 'rust': {
+      const projectDir = data.workspace?.project_dir;
+      return projectDir
+        ? fs.existsSync(path.join(projectDir, 'Cargo.toml'))
+        : fs.existsSync('Cargo.toml');
+    }
+    case 'go': {
+      const projectDir = data.workspace?.project_dir;
+      return projectDir
+        ? fs.existsSync(path.join(projectDir, 'go.mod'))
+        : fs.existsSync('go.mod');
+    }
     case 'effort': {
       return true;
     }
@@ -442,16 +504,16 @@ function evaluateComponent(
 
   switch (comp.type) {
     case 'claude':
-      result = evaluateClaudeComponent(comp.key, data, options.noColor);
+      result = evaluateClaudeComponent(comp.key, data, options.noColor, options.noIcons);
       break;
     case 'fs':
       result = evaluateFsComponent(comp.key, data);
       break;
     case 'git':
-      result = evaluateGitComponent(comp.key, options.noColor);
+      result = evaluateGitComponent(comp.key, options.noColor, options.noIcons);
       break;
     case 'ctx':
-      result = evaluateContextComponent(comp.key, data, comp.args);
+      result = evaluateContextComponent(comp.key, data, comp.args, options.noIcons);
       break;
     case 'cost':
       result = evaluateCostComponent(comp.key, data);
@@ -493,7 +555,7 @@ function evaluateComponent(
       break;
     }
     case 'conditional': {
-      if (comp.children && evaluateCondition(comp.key)) {
+      if (comp.children && evaluateCondition(comp.key, data)) {
         result = evaluateComponents(comp.children, data, options);
       }
       break;

@@ -158,7 +158,7 @@ export function listComponents(): void {
     {
       name: 'Claude/Session',
       prefix: 'claude',
-      items: ['model', 'model-id', 'model-letter', 'effort', 'version', 'session', 'session-full', 'style'],
+      items: ['model', 'model-id', 'model-letter', 'effort', 'effort-icon', 'version', 'session', 'session-full', 'style'],
     },
     {
       name: 'Context Window',

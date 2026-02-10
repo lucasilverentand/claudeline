@@ -29,7 +29,7 @@ export const THEMES: Record<string, string> = {
 
   colorful: 'bold:magenta:claude:model sep:arrow cyan:nerd:nf-cod-folder cyan:fs:dir sep:arrow green:nerd:nf-dev-git_branch green:git:branch yellow:git:status sep:arrow blue:nerd:nf-fa-gauge blue:ctx:percent',
 
-  luca: 'bold:magenta:claude:model if:effort(dim:sep:middot text:󰧑 claude:effort) dim:sep:middot cyan:nerd:nf-md-source_branch cyan:git:repo sep:none text:: sep:none green:git:branch if:subdir(sep:none white:text:/ sep:none white:fs:relative) if:dirty(dim:sep:middot git:dirty) dim:sep:middot white:account:email sep:newline bold:white:usage:5h-bar:8 usage:5h (usage:5h-pace) dim:usage:5h-reset dim:sep:middot bold:white:usage:week-bar:8 usage:week (usage:week-pace) dim:usage:week-reset dim:sep:middot white:cost:total',
+  luca: 'bold:magenta:claude:model if:effort(dim:sep:middot claude:effort-icon claude:effort) dim:sep:middot cyan:nerd:nf-md-source_branch cyan:git:repo sep:none text:: sep:none green:git:branch if:subdir(sep:none white:text:/ sep:none white:fs:relative) if:dirty(dim:sep:middot git:dirty) dim:sep:middot white:account:email sep:newline bold:white:usage:5h-bar:8 usage:5h (usage:5h-pace) dim:usage:5h-reset dim:sep:middot bold:white:usage:week-bar:8 usage:week (usage:week-pace) dim:usage:week-reset dim:sep:middot white:cost:total',
 };
 
 export function getTheme(name: string): string | null {
