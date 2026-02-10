@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3](https://github.com/lucasilverentand/claudeline/compare/v1.6.2...v1.6.3) (2026-02-10)
+
+
+### Bug Fixes
+
+* use stdin reasoning_effort, fix project paths, harden API calls ([e45dd97](https://github.com/lucasilverentand/claudeline/commit/e45dd97d6528a25628c1cc56a96eebfc5aae206c))
+
 ## [1.6.2](https://github.com/lucasilverentand/claudeline/compare/v1.6.1...v1.6.2) (2026-02-07)
 
 
