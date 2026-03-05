@@ -1,6 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as crypto from 'crypto';
+import { execSync } from 'child_process';
+import { getClaudeConfigDir } from './installer.js';
 
 interface UsageWindow {
   utilization: number;
@@ -84,25 +87,191 @@ function getClusageAccount(): ClusageAPIAccount | null {
   return payload.accounts[0];
 }
 
+// MARK: - Direct API fallback
+
+interface CachedData<T> {
+  data: T;
+  fetched_at: number;
+}
+
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const PROFILE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const ANTHROPIC_BETA_HEADER = 'oauth-2025-04-20';
+
+function tokenHash(token: string): string {
+  return crypto.createHash('sha256').update(token).digest('hex').slice(0, 12);
+}
+
+function getCacheFile(token: string, type: 'usage' | 'profile'): string {
+  const dir = path.join(getClaudeConfigDir(), 'cache');
+  try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ignore */ }
+  return path.join(dir, `claudeline-${type}-${tokenHash(token)}.json`);
+}
+
+function readCache<T>(cacheFile: string, ttlMs: number): T | null {
+  try {
+    const raw = fs.readFileSync(cacheFile, 'utf8');
+    const cached: CachedData<T> = JSON.parse(raw);
+    if (Date.now() - cached.fetched_at < ttlMs) {
+      return cached.data;
+    }
+  } catch {
+    // no cache or invalid
+  }
+  return null;
+}
+
+function writeCache<T>(cacheFile: string, data: T): void {
+  try {
+    fs.writeFileSync(cacheFile, JSON.stringify({ data, fetched_at: Date.now() }));
+  } catch {
+    // ignore write errors
+  }
+}
+
+function extractToken(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === 'string') return parsed;
+    if (parsed.claudeAiOauth?.accessToken) return parsed.claudeAiOauth.accessToken;
+    if (parsed.accessToken) return parsed.accessToken;
+    if (parsed.access_token) return parsed.access_token;
+  } catch {
+    // not valid JSON
+  }
+  return null;
+}
+
+function getKeychainService(): string {
+  const configDir = process.env.CLAUDE_CONFIG_DIR;
+  if (configDir) {
+    const suffix = crypto.createHash('sha256').update(configDir).digest('hex').slice(0, 8);
+    return `Claude Code-credentials-${suffix}`;
+  }
+  return 'Claude Code-credentials';
+}
+
+function getOAuthTokenMacOS(): string | null {
+  try {
+    const service = getKeychainService();
+    const raw = execSync(
+      `security find-generic-password -s "${service}" -w 2>/dev/null`,
+      { encoding: 'utf8' }
+    ).trim();
+    return extractToken(raw);
+  } catch {
+    return null;
+  }
+}
+
+function getOAuthTokenLinux(): string | null {
+  try {
+    const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+    const credPath = path.join(configDir, '.credentials.json');
+    const raw = fs.readFileSync(credPath, 'utf8').trim();
+    return extractToken(raw);
+  } catch {
+    return null;
+  }
+}
+
+function getOAuthToken(): string | null {
+  switch (process.platform) {
+    case 'darwin':
+      return getOAuthTokenMacOS();
+    case 'linux':
+      return getOAuthTokenLinux();
+    default:
+      return null;
+  }
+}
+
+function apiGet(token: string, urlPath: string): string | null {
+  try {
+    return execSync(
+      `curl -s --max-time 5 -H "Authorization: Bearer $__CLAUDE_TOKEN" -H "anthropic-beta: ${ANTHROPIC_BETA_HEADER}" "https://api.anthropic.com${urlPath}"`,
+      { encoding: 'utf8', env: { ...process.env, __CLAUDE_TOKEN: token } }
+    ).trim();
+  } catch {
+    return null;
+  }
+}
+
+function fetchUsageDirect(token: string): UsageData | null {
+  try {
+    const result = apiGet(token, '/api/oauth/usage');
+    if (!result) return null;
+    const data = JSON.parse(result);
+    if (data.five_hour && data.seven_day) return data as UsageData;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function fetchProfileDirect(token: string): ProfileData | null {
+  try {
+    const result = apiGet(token, '/api/oauth/profile');
+    if (!result) return null;
+    const data = JSON.parse(result);
+    if (data.account?.email) return { email: data.account.email };
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function getUsageDataDirect(): UsageData | null {
+  const token = getOAuthToken();
+  if (!token) return null;
+
+  const cacheFile = getCacheFile(token, 'usage');
+  const cached = readCache<UsageData>(cacheFile, CACHE_TTL_MS);
+  if (cached) return cached;
+
+  const data = fetchUsageDirect(token);
+  if (data) writeCache(cacheFile, data);
+  return data;
+}
+
+function getProfileDataDirect(): ProfileData | null {
+  const token = getOAuthToken();
+  if (!token) return null;
+
+  const cacheFile = getCacheFile(token, 'profile');
+  const cached = readCache<ProfileData>(cacheFile, PROFILE_CACHE_TTL_MS);
+  if (cached) return cached;
+
+  const data = fetchProfileDirect(token);
+  if (data) writeCache(cacheFile, data);
+  return data;
+}
+
+// MARK: - Unified data access (clusage first, direct API fallback)
+
 function getUsageData(): UsageData | null {
   const account = getClusageAccount();
-  if (!account) return null;
-  return {
-    five_hour: {
-      utilization: account.fiveHour.utilization,
-      resets_at: account.fiveHour.resetsAt,
-    },
-    seven_day: {
-      utilization: account.sevenDay.utilization,
-      resets_at: account.sevenDay.resetsAt,
-    },
-  };
+  if (account) {
+    return {
+      five_hour: {
+        utilization: account.fiveHour.utilization,
+        resets_at: account.fiveHour.resetsAt,
+      },
+      seven_day: {
+        utilization: account.sevenDay.utilization,
+        resets_at: account.sevenDay.resetsAt,
+      },
+    };
+  }
+  return getUsageDataDirect();
 }
 
 function getProfileData(): ProfileData | null {
   const account = getClusageAccount();
-  if (!account?.profile) return null;
-  return { email: account.profile.email };
+  if (account?.profile) {
+    return { email: account.profile.email };
+  }
+  return getProfileDataDirect();
 }
 
 // MARK: - Formatting helpers
@@ -247,7 +416,7 @@ export function evaluateUsageComponent(key: string, args?: string, noColor = fal
       const { delta } = calculatePace(data.seven_day, SEVEN_DAY_MS);
       return formatPaceIcon(delta, noColor);
     }
-    // Clusage momentum/projection data
+    // Clusage-only momentum/projection data (no direct API fallback)
     case 'velocity': {
       const m = getClusageAccount()?.momentum;
       return m ? m.velocity.toFixed(1) + ' pp/hr' : '';

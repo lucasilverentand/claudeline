@@ -571,20 +571,51 @@ function evaluateComponents(
   data: Partial<ClaudeInput>,
   options: RuntimeOptions
 ): string {
-  const parts: string[] = [];
+  // Evaluate all components, tagging each with its type
+  const evaluated: { type: string; value: string }[] = components.map((comp) => ({
+    type: comp.type,
+    value: evaluateComponent(comp, data, options),
+  }));
 
-  for (let i = 0; i < components.length; i++) {
-    const comp = components[i];
-    const prev = components[i - 1];
-    const value = evaluateComponent(comp, data, options);
+  // Drop separators adjacent to empty content on both sides.
+  // A separator is kept only if there is non-empty content before AND after it
+  // (ignoring other separators in between).
+  const filtered: { type: string; value: string }[] = [];
+  for (let i = 0; i < evaluated.length; i++) {
+    const entry = evaluated[i];
+    if (entry.type === 'sep') {
+      // Look backward for non-empty, non-sep content
+      let hasBefore = false;
+      for (let j = i - 1; j >= 0; j--) {
+        if (evaluated[j].type === 'sep') continue;
+        if (evaluated[j].value) { hasBefore = true; }
+        break;
+      }
+      // Look forward for non-empty, non-sep content
+      let hasAfter = false;
+      for (let j = i + 1; j < evaluated.length; j++) {
+        if (evaluated[j].type === 'sep') continue;
+        if (evaluated[j].value) { hasAfter = true; }
+        break;
+      }
+      if (!hasBefore || !hasAfter) continue;
+    }
+    filtered.push(entry);
+  }
+
+  // Build output string with spacing
+  const parts: string[] = [];
+  for (let i = 0; i < filtered.length; i++) {
+    const entry = filtered[i];
+    const prev = filtered[i - 1];
 
     // Add space between non-separator components
-    if (i > 0 && comp.type !== 'sep' && comp.type !== 'conditional' && prev?.type !== 'sep' && value) {
+    if (i > 0 && entry.type !== 'sep' && entry.type !== 'conditional' && prev?.type !== 'sep' && entry.value) {
       parts.push(' ');
     }
 
-    if (value) {
-      parts.push(value);
+    if (entry.value) {
+      parts.push(entry.value);
     }
   }
 
