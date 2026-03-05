@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.8.0](https://github.com/lucasilverentand/claudeline/compare/v1.7.0...v1.8.0) (2026-03-05)
+
+
+### Features
+
+* dual-mode usage with clusage-first and direct API fallback ([e5899c8](https://github.com/lucasilverentand/claudeline/commit/e5899c839a8be3d5be023a393eae4e8150dbd335))
+
+
+### Bug Fixes
+
+* match Claude Code API call signature in fallback ([bf19d74](https://github.com/lucasilverentand/claudeline/commit/bf19d74db46a8e77b87cc11c2a7bebf6ef743a5e))
+
 ## [1.7.0](https://github.com/lucasilverentand/claudeline/compare/v1.6.3...v1.7.0) (2026-03-05)
 
 
