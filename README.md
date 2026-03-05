@@ -171,7 +171,7 @@ Available separators:
 
 ### Usage/Limits
 
-Fetches your 5-hour and 7-day API utilization from Claude's OAuth API. Data is cached for 5 minutes in `$TMPDIR/claudeline-usage-cache.json`, shared across all sessions system-wide. The OAuth token is read automatically from macOS Keychain.
+Requires [Clusage](https://github.com/seventwo-studio/clusage), a macOS menu bar app that tracks your Claude API usage. Clusage writes usage data to `~/.claude/clusage-api.json`, which claudeline reads automatically. Install Clusage and add at least one account for usage components to work.
 
 | Component | Description | Example |
 |-----------|-------------|---------|
@@ -188,6 +188,13 @@ Fetches your 5-hour and 7-day API utilization from Claude's OAuth API. Data is c
 | `usage:5h-emoji` | 5h status emoji (🟢🟡🟠🔴) | `🟢` |
 | `usage:week-emoji` | Weekly status emoji | `🟡` |
 | `usage:7d-emoji` | Alias for `usage:week-emoji` | `🟡` |
+| `usage:velocity` | 5h usage velocity | `2.3 pp/hr` |
+| `usage:intensity` | Usage intensity level | `moderate` |
+| `usage:eta` | Time until rate limit ceiling | `1h 23m` |
+| `usage:7d-granular` | Interpolated 7-day utilization | `46.3%` |
+| `usage:7d-projected` | Projected 7-day at reset | `62%` |
+| `usage:budget` | Daily usage budget | `14.3 pp/day` |
+| `usage:budget-status` | Budget pacing status | `on_track` |
 
 ### File System
 

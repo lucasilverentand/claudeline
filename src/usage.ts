@@ -1,9 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import * as crypto from 'crypto';
-import { execSync } from 'child_process';
-import { getClaudeConfigDir } from './installer.js';
 
 interface UsageWindow {
   utilization: number;
@@ -28,155 +25,112 @@ interface ProfileData {
   };
 }
 
-interface CachedUsage {
-  data: UsageData;
-  fetched_at: number;
+// MARK: - Clusage API file integration
+
+interface ClusageAPIWindow {
+  utilization: number;
+  resetsAt: string;
 }
 
-interface CachedProfile {
-  data: ProfileData;
-  fetched_at: number;
+interface ClusageAPIMomentum {
+  velocity: number;
+  acceleration: number;
+  intensity: string;
+  etaToCeiling: number | null;
+  resetsFirst: boolean;
 }
 
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
-const PROFILE_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
-const ANTHROPIC_BETA_HEADER = 'oauth-2025-04-20';
-
-function tokenHash(token: string): string {
-  return crypto.createHash('sha256').update(token).digest('hex').slice(0, 12);
+interface ClusageAPIProjection {
+  sevenDayVelocity: number;
+  projectedAtReset: number;
+  dailyBudget: number;
+  dailyProjected: number;
+  remainingDays: number;
+  status: string;
+  granularSevenDayUtilization: number | null;
 }
 
-function getCacheFile(token: string, type: 'usage' | 'profile'): string {
-  const dir = path.join(getClaudeConfigDir(), 'cache');
-  try { fs.mkdirSync(dir, { recursive: true }); } catch { /* ignore */ }
-  return path.join(dir, `claudeline-${type}-${tokenHash(token)}.json`);
+interface ClusageAPIAccount {
+  id: string;
+  name: string;
+  fiveHour: ClusageAPIWindow;
+  sevenDay: ClusageAPIWindow;
+  profile: {
+    fullName: string;
+    displayName: string;
+    email: string;
+    organizationName: string | null;
+    organizationType: string | null;
+    rateLimitTier: string | null;
+  } | null;
+  momentum: ClusageAPIMomentum | null;
+  projection: ClusageAPIProjection | null;
 }
 
-function readCache(cacheFile: string): CachedUsage | null {
+interface ClusageAPIPayload {
+  version: number;
+  updatedAt: string;
+  accounts: ClusageAPIAccount[];
+}
+
+const CLUSAGE_API_FILE = path.join(os.homedir(), '.claude', 'clusage-api.json');
+const CLUSAGE_STALE_MS = 10 * 60 * 1000; // 10 minutes
+
+let _clusageCache: ClusageAPIPayload | null = null;
+
+function readClusageAPI(): ClusageAPIPayload | null {
   try {
-    const raw = fs.readFileSync(cacheFile, 'utf8');
-    const cached: CachedUsage = JSON.parse(raw);
-    if (Date.now() - cached.fetched_at < CACHE_TTL_MS) {
-      return cached;
-    }
-  } catch {
-    // no cache or invalid
-  }
-  return null;
-}
-
-function writeCache(cacheFile: string, data: UsageData): void {
-  try {
-    fs.writeFileSync(cacheFile, JSON.stringify({ data, fetched_at: Date.now() }));
-  } catch {
-    // ignore write errors
-  }
-}
-
-function getKeychainService(): string {
-  const configDir = process.env.CLAUDE_CONFIG_DIR;
-  if (configDir) {
-    const suffix = crypto.createHash('sha256').update(configDir).digest('hex').slice(0, 8);
-    return `Claude Code-credentials-${suffix}`;
-  }
-  return 'Claude Code-credentials';
-}
-
-function extractToken(raw: string): string | null {
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed === 'string') return parsed;
-    // Handle nested structure: { claudeAiOauth: { accessToken: "..." } }
-    if (parsed.claudeAiOauth?.accessToken) return parsed.claudeAiOauth.accessToken;
-    if (parsed.accessToken) return parsed.accessToken;
-    if (parsed.access_token) return parsed.access_token;
-  } catch {
-    // not valid JSON
-  }
-  return null;
-}
-
-function getOAuthTokenMacOS(): string | null {
-  try {
-    const service = getKeychainService();
-    const raw = execSync(
-      `security find-generic-password -s "${service}" -w 2>/dev/null`,
-      { encoding: 'utf8' }
-    ).trim();
-    return extractToken(raw);
+    const raw = fs.readFileSync(CLUSAGE_API_FILE, 'utf8');
+    const payload: ClusageAPIPayload = JSON.parse(raw);
+    if (!payload.updatedAt || !payload.accounts?.length) return null;
+    const age = Date.now() - new Date(payload.updatedAt).getTime();
+    if (age > CLUSAGE_STALE_MS) return null;
+    _clusageCache = payload;
+    return payload;
   } catch {
     return null;
   }
 }
 
-function getOAuthTokenLinux(): string | null {
-  try {
-    const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
-    const credPath = path.join(configDir, '.credentials.json');
-    const raw = fs.readFileSync(credPath, 'utf8').trim();
-    return extractToken(raw);
-  } catch {
-    return null;
-  }
-}
-
-function getOAuthToken(): string | null {
-  switch (process.platform) {
-    case 'darwin':
-      return getOAuthTokenMacOS();
-    case 'linux':
-      return getOAuthTokenLinux();
-    default:
-      return null;
-  }
-}
-
-function apiGet(token: string, urlPath: string): string | null {
-  try {
-    return execSync(
-      `curl -s --max-time 5 -H "Authorization: Bearer $__CLAUDE_TOKEN" -H "anthropic-beta: ${ANTHROPIC_BETA_HEADER}" "https://api.anthropic.com${urlPath}"`,
-      { encoding: 'utf8', env: { ...process.env, __CLAUDE_TOKEN: token } }
-    ).trim();
-  } catch {
-    return null;
-  }
-}
-
-function apiGetWithRetry(token: string, urlPath: string): string | null {
-  const result = apiGet(token, urlPath);
-  if (result !== null) return result;
-  // Retry once on failure
-  return apiGet(token, urlPath);
-}
-
-function fetchUsage(token: string): UsageData | null {
-  try {
-    const result = apiGetWithRetry(token, '/api/oauth/usage');
-    if (!result) return null;
-    const data = JSON.parse(result);
-    if (data.five_hour && data.seven_day) {
-      return data as UsageData;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+function getClusageAccount(): ClusageAPIAccount | null {
+  const payload = _clusageCache ?? readClusageAPI();
+  if (!payload || payload.accounts.length === 0) return null;
+  return payload.accounts[0];
 }
 
 function getUsageData(): UsageData | null {
-  const token = getOAuthToken();
-  if (!token) return null;
-
-  const cacheFile = getCacheFile(token, 'usage');
-  const cached = readCache(cacheFile);
-  if (cached) return cached.data;
-
-  const data = fetchUsage(token);
-  if (data) {
-    writeCache(cacheFile, data);
-  }
-  return data;
+  const account = getClusageAccount();
+  if (!account) return null;
+  return {
+    five_hour: {
+      utilization: account.fiveHour.utilization,
+      resets_at: account.fiveHour.resetsAt,
+    },
+    seven_day: {
+      utilization: account.sevenDay.utilization,
+      resets_at: account.sevenDay.resetsAt,
+    },
+  };
 }
+
+function getProfileData(): ProfileData | null {
+  const account = getClusageAccount();
+  if (!account?.profile) return null;
+  return {
+    account: {
+      full_name: account.profile.fullName,
+      display_name: account.profile.displayName,
+      email: account.profile.email,
+    },
+    organization: {
+      name: account.profile.organizationName ?? '',
+      organization_type: account.profile.organizationType ?? '',
+      rate_limit_tier: account.profile.rateLimitTier ?? '',
+    },
+  };
+}
+
+// MARK: - Formatting helpers
 
 function formatTimeUntil(isoDate: string): string {
   const reset = new Date(isoDate).getTime();
@@ -236,55 +190,7 @@ function makeBar(pct: number, width: number, label?: string): string {
   return label ? label + bar : bar;
 }
 
-function readProfileCache(cacheFile: string): CachedProfile | null {
-  try {
-    const raw = fs.readFileSync(cacheFile, 'utf8');
-    const cached: CachedProfile = JSON.parse(raw);
-    if (Date.now() - cached.fetched_at < PROFILE_CACHE_TTL_MS) {
-      return cached;
-    }
-  } catch {
-    // no cache or invalid
-  }
-  return null;
-}
-
-function writeProfileCache(cacheFile: string, data: ProfileData): void {
-  try {
-    fs.writeFileSync(cacheFile, JSON.stringify({ data, fetched_at: Date.now() }));
-  } catch {
-    // ignore write errors
-  }
-}
-
-function fetchProfile(token: string): ProfileData | null {
-  try {
-    const result = apiGetWithRetry(token, '/api/oauth/profile');
-    if (!result) return null;
-    const data = JSON.parse(result);
-    if (data.account?.email) {
-      return data as ProfileData;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-function getProfileData(): ProfileData | null {
-  const token = getOAuthToken();
-  if (!token) return null;
-
-  const cacheFile = getCacheFile(token, 'profile');
-  const cached = readProfileCache(cacheFile);
-  if (cached) return cached.data;
-
-  const data = fetchProfile(token);
-  if (data) {
-    writeProfileCache(cacheFile, data);
-  }
-  return data;
-}
+// MARK: - Component evaluators
 
 export function evaluateAccountComponent(key: string): string {
   const data = getProfileData();
@@ -375,6 +281,40 @@ export function evaluateUsageComponent(key: string, args?: string, noColor = fal
     case '7d-pace-icon': {
       const { delta } = calculatePace(data.seven_day, SEVEN_DAY_MS);
       return formatPaceIcon(delta, noColor);
+    }
+    // Clusage momentum/projection data
+    case 'velocity': {
+      const m = getClusageAccount()?.momentum;
+      return m ? m.velocity.toFixed(1) + ' pp/hr' : '';
+    }
+    case 'intensity': {
+      const m = getClusageAccount()?.momentum;
+      return m?.intensity ?? '';
+    }
+    case 'eta': {
+      const m = getClusageAccount()?.momentum;
+      if (!m?.etaToCeiling) return '';
+      const h = Math.floor(m.etaToCeiling / 3600);
+      const min = Math.floor((m.etaToCeiling % 3600) / 60);
+      return h > 0 ? `${h}h ${min}m` : `${min}m`;
+    }
+    case '7d-granular': {
+      const p = getClusageAccount()?.projection;
+      return p?.granularSevenDayUtilization != null
+        ? p.granularSevenDayUtilization.toFixed(1) + '%'
+        : '';
+    }
+    case '7d-projected': {
+      const p = getClusageAccount()?.projection;
+      return p ? Math.round(p.projectedAtReset) + '%' : '';
+    }
+    case 'budget': {
+      const p = getClusageAccount()?.projection;
+      return p ? p.dailyBudget.toFixed(1) + ' pp/day' : '';
+    }
+    case 'budget-status': {
+      const p = getClusageAccount()?.projection;
+      return p?.status ?? '';
     }
     default:
       return '';
