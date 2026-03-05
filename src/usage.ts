@@ -13,16 +13,7 @@ interface UsageData {
 }
 
 interface ProfileData {
-  account: {
-    full_name: string;
-    display_name: string;
-    email: string;
-  };
-  organization: {
-    name: string;
-    organization_type: string;
-    rate_limit_tier: string;
-  };
+  email: string;
 }
 
 // MARK: - Clusage API file integration
@@ -56,12 +47,7 @@ interface ClusageAPIAccount {
   fiveHour: ClusageAPIWindow;
   sevenDay: ClusageAPIWindow;
   profile: {
-    fullName: string;
-    displayName: string;
     email: string;
-    organizationName: string | null;
-    organizationType: string | null;
-    rateLimitTier: string | null;
   } | null;
   momentum: ClusageAPIMomentum | null;
   projection: ClusageAPIProjection | null;
@@ -116,18 +102,7 @@ function getUsageData(): UsageData | null {
 function getProfileData(): ProfileData | null {
   const account = getClusageAccount();
   if (!account?.profile) return null;
-  return {
-    account: {
-      full_name: account.profile.fullName,
-      display_name: account.profile.displayName,
-      email: account.profile.email,
-    },
-    organization: {
-      name: account.profile.organizationName ?? '',
-      organization_type: account.profile.organizationType ?? '',
-      rate_limit_tier: account.profile.rateLimitTier ?? '',
-    },
-  };
+  return { email: account.profile.email };
 }
 
 // MARK: - Formatting helpers
@@ -198,17 +173,7 @@ export function evaluateAccountComponent(key: string): string {
 
   switch (key) {
     case 'email':
-      return data.account.email;
-    case 'name':
-      return data.account.full_name;
-    case 'display-name':
-      return data.account.display_name;
-    case 'org':
-      return data.organization.name;
-    case 'plan':
-      return data.organization.organization_type;
-    case 'tier':
-      return data.organization.rate_limit_tier;
+      return data.email;
     default:
       return '';
   }
