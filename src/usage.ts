@@ -189,7 +189,7 @@ function getOAuthToken(): string | null {
 function apiGet(token: string, urlPath: string): string | null {
   try {
     return execSync(
-      `curl -s --max-time 5 -H "Authorization: Bearer $__CLAUDE_TOKEN" -H "anthropic-beta: ${ANTHROPIC_BETA_HEADER}" "https://api.anthropic.com${urlPath}"`,
+      `curl -s --max-time 5 -H "Content-Type: application/json" -H "User-Agent: claude-code/2.1.69" -H "Authorization: Bearer $__CLAUDE_TOKEN" -H "anthropic-beta: ${ANTHROPIC_BETA_HEADER}" "https://api.anthropic.com${urlPath}"`,
       { encoding: 'utf8', env: { ...process.env, __CLAUDE_TOKEN: token } }
     ).trim();
   } catch {
