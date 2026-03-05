@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/lucasilverentand/claudeline/compare/v1.6.3...v1.7.0) (2026-03-05)
+
+
+### Features
+
+* add momentum data to luca theme second line ([17c606e](https://github.com/lucasilverentand/claudeline/commit/17c606ee0855c51ee6b509ff8471da7ba2a3b399))
+
 ## [1.6.3](https://github.com/lucasilverentand/claudeline/compare/v1.6.2...v1.6.3) (2026-02-10)
 
 
