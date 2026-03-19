@@ -36,6 +36,16 @@ export interface ClaudeInput {
       cache_read_input_tokens: number;
     } | null;
   };
+  rate_limits?: {
+    five_hour: {
+      used_percentage: number;
+      resets_at: number;
+    };
+    seven_day: {
+      used_percentage: number;
+      resets_at: number;
+    };
+  };
 }
 
 export interface ParsedComponent {

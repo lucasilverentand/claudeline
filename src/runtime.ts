@@ -6,7 +6,8 @@ import { parseFormat } from './parser.js';
 import { getSeparator } from './separators.js';
 import { COLORS, RESET } from './colors.js';
 import type { ParsedComponent, ClaudeInput } from './types.js';
-import { evaluateUsageComponent, evaluateAccountComponent } from './usage.js';
+import { evaluateUsageComponent } from './usage.js';
+import { evaluateAccountComponent } from './account.js';
 import { getNerdIcon, detectNerdFont } from './nerdfonts.js';
 
 export interface RuntimeOptions {
@@ -522,7 +523,7 @@ function evaluateComponent(
       result = evaluateEnvComponent(comp.key);
       break;
     case 'usage':
-      result = evaluateUsageComponent(comp.key, comp.args, options.noColor);
+      result = evaluateUsageComponent(comp.key, data, comp.args, options.noColor);
       break;
     case 'account':
       result = evaluateAccountComponent(comp.key);
