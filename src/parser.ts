@@ -203,7 +203,7 @@ export function listComponents(): void {
     {
       name: 'Account',
       prefix: 'account',
-      items: ['email', 'name', 'display-name', 'org', 'plan', 'tier'],
+      items: ['email'],
     },
     {
       name: 'Usage/Limits',
