@@ -1,0 +1,623 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { THEMES } from '../lib/themes';
+
+const themeEntries = Object.entries(THEMES);
+---
+
+<Layout title="claudeline preview">
+  <main>
+    <header>
+      <h1><span class="logo">claudeline</span> preview</h1>
+      <p class="subtitle">Configure and preview your Claude Code status line</p>
+    </header>
+
+    <section class="controls">
+      <div class="control-row">
+        <div class="control-group">
+          <label for="theme-select">Theme</label>
+          <select id="theme-select">
+            {themeEntries.map(([name]) => (
+              <option value={name} selected={name === 'default'}>{name}</option>
+            ))}
+            <option value="__custom">Custom</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="model-select">Model</label>
+          <select id="model-select">
+            <option value="Sonnet" data-id="claude-sonnet-4-6">Sonnet</option>
+            <option value="Opus" data-id="claude-opus-4-6">Opus</option>
+            <option value="Haiku" data-id="claude-haiku-4-5-20251001">Haiku</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="effort-select">Effort</label>
+          <select id="effort-select">
+            <option value="high">high</option>
+            <option value="medium">medium</option>
+            <option value="low">low</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="ctx-slider">Context %</label>
+          <input type="range" id="ctx-slider" min="0" max="100" value="42" />
+          <span id="ctx-value" class="slider-value">42%</span>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="control-group full-width">
+          <label for="format-input">Format string</label>
+          <input
+            type="text"
+            id="format-input"
+            value={THEMES.default}
+            spellcheck="false"
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <div class="control-row">
+        <div class="control-group">
+          <label for="cost-input">Cost ($)</label>
+          <input type="number" id="cost-input" value="0.02" step="0.01" min="0" />
+        </div>
+
+        <div class="control-group">
+          <label for="dir-input">Directory</label>
+          <input type="text" id="dir-input" value="myapp" spellcheck="false" />
+        </div>
+
+        <div class="control-group">
+          <label for="branch-input">Branch</label>
+          <input type="text" id="branch-input" value="main" spellcheck="false" />
+        </div>
+
+        <div class="control-group">
+          <label for="git-status-select">Git status</label>
+          <select id="git-status-select">
+            <option value="clean">clean</option>
+            <option value="dirty">dirty</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="preview-section">
+      <h2>Preview</h2>
+      <div class="terminal">
+        <div class="terminal-bar">
+          <span class="dot red"></span>
+          <span class="dot yellow"></span>
+          <span class="dot green"></span>
+          <span class="terminal-title">Claude Code</span>
+        </div>
+        <div class="terminal-body">
+          <div class="prompt-line">
+            <span class="prompt-symbol">$</span>
+            <span class="cursor"></span>
+          </div>
+          <div class="statusline" id="statusline-output">
+            <!-- rendered here -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="segments-section">
+      <h2>Add Segments</h2>
+      <div class="segment-categories" id="segment-categories">
+        <!-- built by JS -->
+      </div>
+    </section>
+
+    <section class="install-section">
+      <h2>Install</h2>
+      <div class="install-box">
+        <code id="install-command">npx claudeline --install --theme default</code>
+        <button id="copy-btn" title="Copy to clipboard">Copy</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- Embed theme data for client JS -->
+  <script id="theme-data" type="application/json" set:html={JSON.stringify(THEMES)} />
+
+  <script>
+    import { renderToHtml, parseFormat } from '../lib/renderer';
+    import { MOCK_DATA } from '../lib/mock-data';
+    import type { ClaudeInput } from '../lib/types';
+
+    const themes: Record<string, string> = JSON.parse(
+      document.getElementById('theme-data')!.textContent!
+    );
+
+    // DOM refs
+    const themeSelect = document.getElementById('theme-select') as HTMLSelectElement;
+    const modelSelect = document.getElementById('model-select') as HTMLSelectElement;
+    const effortSelect = document.getElementById('effort-select') as HTMLSelectElement;
+    const ctxSlider = document.getElementById('ctx-slider') as HTMLInputElement;
+    const ctxValue = document.getElementById('ctx-value') as HTMLSpanElement;
+    const formatInput = document.getElementById('format-input') as HTMLInputElement;
+    const costInput = document.getElementById('cost-input') as HTMLInputElement;
+    const dirInput = document.getElementById('dir-input') as HTMLInputElement;
+    const branchInput = document.getElementById('branch-input') as HTMLInputElement;
+    const gitStatusSelect = document.getElementById('git-status-select') as HTMLSelectElement;
+    const output = document.getElementById('statusline-output') as HTMLDivElement;
+    const installCmd = document.getElementById('install-command') as HTMLElement;
+    const copyBtn = document.getElementById('copy-btn') as HTMLButtonElement;
+    const segCats = document.getElementById('segment-categories') as HTMLDivElement;
+
+    // Current mock data (mutable)
+    let mockData: Partial<ClaudeInput> = structuredClone(MOCK_DATA);
+
+    // --- Segment palette ---
+    const CATEGORIES = [
+      { name: 'Claude', items: ['claude:model', 'claude:model-id', 'claude:model-letter', 'claude:version', 'claude:effort', 'claude:effort-icon'] },
+      { name: 'Context', items: ['ctx:percent', 'ctx:remaining', 'ctx:tokens', 'ctx:bar', 'ctx:icon', 'ctx:in', 'ctx:out'] },
+      { name: 'Cost', items: ['cost:total', 'cost:total-cents', 'cost:duration', 'cost:lines', 'cost:lines-both', 'cost:added', 'cost:removed'] },
+      { name: 'File System', items: ['fs:dir', 'fs:home', 'fs:project', 'fs:path', 'fs:relative'] },
+      { name: 'Git', items: ['git:branch', 'git:status', 'git:ahead-behind', 'git:dirty', 'git:staged', 'git:modified', 'git:untracked', 'git:commit', 'git:repo', 'git:repo-branch'] },
+      { name: 'Environment', items: ['env:node', 'env:node-short', 'env:python', 'env:user', 'env:hostname-short', 'env:os', 'env:arch'] },
+      { name: 'Time', items: ['time:now', 'time:12h', 'time:date', 'time:elapsed'] },
+      { name: 'Usage', items: ['usage:5h', 'usage:5h-bar:8', 'usage:5h-pace', 'usage:week', 'usage:week-bar:8', 'usage:week-pace'] },
+      { name: 'Separators', items: ['sep:pipe', 'sep:arrow', 'sep:dot', 'sep:dash', 'sep:slash', 'sep:chevron', 'sep:middot', 'sep:powerline', 'sep:newline'] },
+      { name: 'Icons', items: ['nerd:folder', 'nerd:branch', 'nerd:star', 'nerd:rocket', 'nerd:clock', 'nerd:dollar', 'nerd:code', 'nerd:terminal'] },
+    ];
+
+    function buildSegmentPalette() {
+      segCats.innerHTML = CATEGORIES.map(cat => `
+        <div class="segment-cat">
+          <h3>${cat.name}</h3>
+          <div class="segment-chips">
+            ${cat.items.map(item => `<button class="chip" data-segment="${item}">${item}</button>`).join('')}
+          </div>
+        </div>
+      `).join('');
+
+      segCats.querySelectorAll('.chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const seg = (btn as HTMLElement).dataset.segment!;
+          const current = formatInput.value.trim();
+          formatInput.value = current ? current + ' ' + seg : seg;
+          themeSelect.value = '__custom';
+          updatePreview();
+        });
+      });
+    }
+
+    // --- Update logic ---
+    function buildMockData(): Partial<ClaudeInput> {
+      const ctxPct = parseInt(ctxSlider.value);
+      const selectedModel = modelSelect.selectedOptions[0];
+
+      return {
+        ...MOCK_DATA,
+        model: {
+          id: selectedModel.dataset.id || 'claude-sonnet-4-6',
+          display_name: modelSelect.value,
+          reasoning_effort: effortSelect.value,
+        },
+        workspace: {
+          current_dir: '/Users/demo/projects/' + dirInput.value,
+          project_dir: '/Users/demo/projects/' + dirInput.value,
+        },
+        cwd: '/Users/demo/projects/' + dirInput.value,
+        cost: {
+          ...MOCK_DATA.cost,
+          total_cost_usd: parseFloat(costInput.value) || 0,
+        },
+        context_window: {
+          ...MOCK_DATA.context_window,
+          used_percentage: ctxPct,
+          remaining_percentage: 100 - ctxPct,
+        },
+      };
+    }
+
+    // Override branch/status in renderer by patching the global mock
+    // We do this by monkey-patching the branch input value into a global
+    (window as any).__mockBranch = 'main';
+    (window as any).__mockGitClean = true;
+
+    function updatePreview() {
+      const format = formatInput.value.trim();
+      if (!format) {
+        output.innerHTML = '<span class="empty">Enter a format string above</span>';
+        return;
+      }
+
+      mockData = buildMockData();
+      // We can't easily override git mock, so we patch the renderer module
+      // For now the renderer uses hardcoded mock git values
+
+      try {
+        const html = renderToHtml(format, mockData);
+        output.innerHTML = html || '<span class="empty">(empty output)</span>';
+      } catch (e) {
+        output.innerHTML = `<span class="error">Error: ${(e as Error).message}</span>`;
+      }
+
+      // Update install command
+      const currentTheme = themeSelect.value;
+      if (currentTheme !== '__custom' && themes[currentTheme]) {
+        installCmd.textContent = `npx claudeline --install --theme ${currentTheme}`;
+      } else {
+        installCmd.textContent = `npx claudeline --install "${format}"`;
+      }
+    }
+
+    // --- Event listeners ---
+    themeSelect.addEventListener('change', () => {
+      const val = themeSelect.value;
+      if (val !== '__custom' && themes[val]) {
+        formatInput.value = themes[val];
+      }
+      updatePreview();
+    });
+
+    [modelSelect, effortSelect, gitStatusSelect].forEach(el =>
+      el.addEventListener('change', updatePreview)
+    );
+
+    ctxSlider.addEventListener('input', () => {
+      ctxValue.textContent = ctxSlider.value + '%';
+      updatePreview();
+    });
+
+    [formatInput, costInput, dirInput, branchInput].forEach(el =>
+      el.addEventListener('input', updatePreview)
+    );
+
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(installCmd.textContent || '');
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => { copyBtn.textContent = 'Copy'; }, 1500);
+    });
+
+    // Init
+    buildSegmentPalette();
+    updatePreview();
+  </script>
+
+  <style>
+    /* --- Terminal color variables --- */
+    :root {
+      --cl-black: #1a1a2e;
+      --cl-red: #ff6b6b;
+      --cl-green: #51cf66;
+      --cl-yellow: #fcc419;
+      --cl-blue: #74b9ff;
+      --cl-magenta: #d97aff;
+      --cl-cyan: #66d9ef;
+      --cl-white: #e0e0e0;
+      --cl-gray: #888;
+      --cl-grey: #888;
+      --cl-bright-red: #ff8787;
+      --cl-bright-green: #69db7c;
+      --cl-bright-yellow: #ffd43b;
+      --cl-bright-blue: #91c9ff;
+      --cl-bright-magenta: #e599ff;
+      --cl-bright-cyan: #7ee8fc;
+      --cl-bright-white: #ffffff;
+
+      --bg: #0d0d1a;
+      --surface: #1a1a2e;
+      --surface2: #232340;
+      --border: #2d2d4a;
+      --text: #e0e0e0;
+      --text-dim: #888;
+      --accent: #d97aff;
+      --accent2: #66d9ef;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    main {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 300;
+      margin-bottom: 0.25rem;
+    }
+
+    .logo {
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+    }
+
+    h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+    }
+
+    /* --- Controls --- */
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .control-row {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    .control-row:last-child { margin-bottom: 0; }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      flex: 1;
+      min-width: 120px;
+    }
+
+    .control-group.full-width { flex: 1 1 100%; }
+
+    label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-dim);
+    }
+
+    select, input[type="text"], input[type="number"] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    select:focus, input:focus {
+      border-color: var(--accent);
+    }
+
+    input[type="range"] {
+      accent-color: var(--accent);
+      width: 100%;
+    }
+
+    .slider-value {
+      font-size: 0.8rem;
+      color: var(--accent2);
+      font-family: monospace;
+    }
+
+    /* --- Terminal Preview --- */
+    .preview-section { margin-bottom: 1.5rem; }
+
+    .terminal {
+      background: #0c0c18;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .dot.red { background: #ff5f57; }
+    .dot.yellow { background: #febc2e; }
+    .dot.green { background: #28c840; }
+
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-dim);
+    }
+
+    .terminal-body {
+      padding: 1rem 1.25rem;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Hack Nerd Font', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      min-height: 80px;
+    }
+
+    .prompt-line {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: var(--text-dim);
+    }
+
+    .prompt-symbol { color: var(--cl-green); }
+
+    .cursor {
+      display: inline-block;
+      width: 8px;
+      height: 1.1em;
+      background: var(--text);
+      opacity: 0.7;
+      animation: blink 1s step-end infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .statusline {
+      padding: 6px 0;
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Hack Nerd Font', monospace;
+      font-size: 0.9rem;
+      line-height: 1.8;
+      word-break: break-all;
+    }
+
+    .statusline .empty { color: var(--text-dim); font-style: italic; }
+    .statusline .error { color: var(--cl-red); }
+
+    /* --- ANSI-style CSS classes --- */
+    .cl-red { color: var(--cl-red); }
+    .cl-green { color: var(--cl-green); }
+    .cl-yellow { color: var(--cl-yellow); }
+    .cl-blue { color: var(--cl-blue); }
+    .cl-magenta { color: var(--cl-magenta); }
+    .cl-cyan { color: var(--cl-cyan); }
+    .cl-white { color: var(--cl-white); }
+    .cl-gray, .cl-grey { color: var(--cl-gray); }
+    .cl-black { color: var(--cl-black); }
+    .cl-bright-red { color: var(--cl-bright-red); }
+    .cl-bright-green { color: var(--cl-bright-green); }
+    .cl-bright-yellow { color: var(--cl-bright-yellow); }
+    .cl-bright-blue { color: var(--cl-bright-blue); }
+    .cl-bright-magenta { color: var(--cl-bright-magenta); }
+    .cl-bright-cyan { color: var(--cl-bright-cyan); }
+    .cl-bright-white { color: var(--cl-bright-white); }
+    .cl-bold { font-weight: 700; }
+    .cl-dim { opacity: 0.6; }
+    .cl-italic { font-style: italic; }
+    .cl-underline { text-decoration: underline; }
+    .cl-strikethrough { text-decoration: line-through; }
+
+    .cl-bg-red { background: var(--cl-red); color: #000; padding: 0 2px; border-radius: 2px; }
+    .cl-bg-green { background: var(--cl-green); color: #000; padding: 0 2px; border-radius: 2px; }
+    .cl-bg-blue { background: var(--cl-blue); color: #000; padding: 0 2px; border-radius: 2px; }
+    .cl-bg-yellow { background: var(--cl-yellow); color: #000; padding: 0 2px; border-radius: 2px; }
+    .cl-bg-magenta { background: var(--cl-magenta); color: #000; padding: 0 2px; border-radius: 2px; }
+    .cl-bg-cyan { background: var(--cl-cyan); color: #000; padding: 0 2px; border-radius: 2px; }
+    .cl-bg-white { background: var(--cl-white); color: #000; padding: 0 2px; border-radius: 2px; }
+    .cl-bg-black { background: var(--cl-black); padding: 0 2px; border-radius: 2px; }
+
+    /* --- Segment Palette --- */
+    .segments-section { margin-bottom: 1.5rem; }
+
+    .segment-categories {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .segment-cat h3 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--accent2);
+      margin-bottom: 0.35rem;
+    }
+
+    .segment-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .chip:hover {
+      border-color: var(--accent);
+      background: rgba(217, 122, 255, 0.1);
+    }
+
+    /* --- Install --- */
+    .install-section { margin-bottom: 2rem; }
+
+    .install-box {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+    }
+
+    .install-box code {
+      flex: 1;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.85rem;
+      color: var(--cl-green);
+      white-space: nowrap;
+      overflow-x: auto;
+    }
+
+    .install-box button {
+      background: var(--accent);
+      border: none;
+      color: #000;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      white-space: nowrap;
+    }
+
+    .install-box button:hover { opacity: 0.85; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .control-row { flex-direction: column; }
+      .control-group { min-width: 0; }
+    }
+  </style>
+</Layout>
