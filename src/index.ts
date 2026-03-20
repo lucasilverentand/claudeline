@@ -25,6 +25,18 @@ async function readStdin(): Promise<string> {
   });
 }
 
+// Configure subcommand - interactive TUI configurator
+program
+  .command('configure')
+  .alias('tui')
+  .description('Interactive TUI to build and preview your status line')
+  .option('-t, --theme <name>', 'Start from a theme')
+  .option('-f, --format <format>', 'Start from a format string')
+  .action(async (options) => {
+    const { configure } = await import('./configure/index.js');
+    await configure({ theme: options.theme, format: options.format });
+  });
+
 // Run subcommand - evaluates format string at runtime
 program
   .command('run <format>')

@@ -1,0 +1,41 @@
+{
+	"session_id": "a83c917c-157d-4e5f-ab62-961b993e1822",
+	"transcript_path": "/Users/luca/.claude/projects/-Users-luca-Developer-claudeline/a83c917c-157d-4e5f-ab62-961b993e1822.jsonl",
+	"cwd": "/Users/luca/Developer/claudeline",
+	"model": {
+		"id": "claude-opus-4-6[1m]",
+		"display_name": "Opus 4.6 (1M context)"
+	},
+	"workspace": {
+		"current_dir": "/Users/luca/Developer/claudeline",
+		"project_dir": "/Users/luca/Developer/claudeline",
+		"added_dirs": []
+	},
+	"version": "2.1.80",
+	"output_style": { "name": "default" },
+	"cost": {
+		"total_cost_usd": 6.511105749999996,
+		"total_duration_ms": 1643746,
+		"total_api_duration_ms": 604648,
+		"total_lines_added": 189,
+		"total_lines_removed": 372
+	},
+	"context_window": {
+		"total_input_tokens": 2917,
+		"total_output_tokens": 25766,
+		"context_window_size": 1000000,
+		"current_usage": {
+			"input_tokens": 1,
+			"output_tokens": 204,
+			"cache_creation_input_tokens": 233,
+			"cache_read_input_tokens": 142071
+		},
+		"used_percentage": 14,
+		"remaining_percentage": 86
+	},
+	"exceeds_200k_tokens": false,
+	"rate_limits": {
+		"five_hour": { "used_percentage": 20, "resets_at": 1773968400 },
+		"seven_day": { "used_percentage": 71, "resets_at": 1774004400 }
+	}
+}
