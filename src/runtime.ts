@@ -48,47 +48,34 @@ function applyStyles(text: string, styles: string[], noColor: boolean): string {
   return `\x1b[0;${codes.join(';')}m${text}\x1b[${RESET}m`;
 }
 
-// In-memory settings cache (10-second TTL) for effort-level disk fallback
-const settingsCache = new Map<string, { data: Record<string, unknown>; ts: number }>();
-const SETTINGS_CACHE_TTL = 10_000;
+const VALID_EFFORTS = ['low', 'medium', 'high'] as const;
+type Effort = typeof VALID_EFFORTS[number];
 
-function readSettingsFile(filePath: string): Record<string, unknown> {
-  const cached = settingsCache.get(filePath);
-  if (cached && Date.now() - cached.ts < SETTINGS_CACHE_TTL) {
-    return cached.data;
-  }
+function isValidEffort(value: unknown): value is Effort {
+  return typeof value === 'string' && VALID_EFFORTS.includes(value as Effort);
+}
+
+function readEffortFromSettings(filePath: string): Effort | null {
   try {
     const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    settingsCache.set(filePath, { data, ts: Date.now() });
-    return data;
+    return isValidEffort(data.effortLevel) ? data.effortLevel : null;
   } catch {
-    return {};
+    return null;
   }
 }
 
-const VALID_EFFORTS = ['low', 'medium', 'high'] as const;
-
-function resolveEffort(data: Partial<ClaudeInput>): string {
-  // Primary: use runtime value from stdin (authoritative per-session value)
-  const stdinEffort = data.model?.reasoning_effort;
-  if (stdinEffort && VALID_EFFORTS.includes(stdinEffort as typeof VALID_EFFORTS[number])) {
-    return stdinEffort;
+function resolveEffort(data: Partial<ClaudeInput>): string | null {
+  // 1. stdin (authoritative per-session value)
+  if (isValidEffort(data.model?.reasoning_effort)) {
+    return data.model!.reasoning_effort!;
   }
-  // Fallback: read from settings files on disk (cached)
-  let effort = 'high';
-  const globalPath = path.join(os.homedir(), '.claude', 'settings.json');
-  const globalSettings = readSettingsFile(globalPath);
-  if (typeof globalSettings.effortLevel === 'string' && VALID_EFFORTS.includes(globalSettings.effortLevel as typeof VALID_EFFORTS[number])) {
-    effort = globalSettings.effortLevel;
-  }
-  // Project-level overrides global; use project_dir from stdin, not process.cwd()
+  // 2. User settings (CLAUDE_CONFIG_DIR or ~/.claude)
+  const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  let effort = readEffortFromSettings(path.join(configDir, 'settings.json'));
+  // 3. Project settings override user
   const projectDir = data.workspace?.project_dir;
   if (projectDir) {
-    const projectPath = path.join(projectDir, '.claude', 'settings.json');
-    const projectSettings = readSettingsFile(projectPath);
-    if (typeof projectSettings.effortLevel === 'string' && VALID_EFFORTS.includes(projectSettings.effortLevel as typeof VALID_EFFORTS[number])) {
-      effort = projectSettings.effortLevel;
-    }
+    effort = readEffortFromSettings(path.join(projectDir, '.claude', 'settings.json')) ?? effort;
   }
   return effort;
 }
@@ -111,6 +98,7 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
     case 'effort':
     case 'effort-icon': {
       const effort = resolveEffort(data);
+      if (!effort) return '';
       if (key === 'effort-icon' && noIcons) return '';
       const text = key === 'effort-icon' ? '\u{f09d1}' : effort;
       if (noColor) return text;

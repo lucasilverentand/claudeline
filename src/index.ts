@@ -7,8 +7,8 @@ import { install, uninstall } from './installer.js';
 import { getSampleDataJson } from './preview.js';
 import { evaluateFormat } from './runtime.js';
 
-declare const PACKAGE_VERSION: string;
-const VERSION = PACKAGE_VERSION;
+declare const PACKAGE_VERSION: string | undefined;
+const VERSION = typeof PACKAGE_VERSION !== 'undefined' ? PACKAGE_VERSION : 'dev';
 
 // Helper to read stdin
 async function readStdin(): Promise<string> {
