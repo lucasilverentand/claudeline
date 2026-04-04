@@ -545,7 +545,7 @@ function evaluateComponent(
     }
     case 'conditional': {
       if (comp.children && evaluateCondition(comp.key, data)) {
-        result = evaluateComponents(comp.children, data, options);
+        result = evaluateComponents(comp.children, data, options, true);
       }
       break;
     }
@@ -558,7 +558,8 @@ function evaluateComponent(
 function evaluateComponents(
   components: ParsedComponent[],
   data: Partial<ClaudeInput>,
-  options: RuntimeOptions
+  options: RuntimeOptions,
+  preserveEdgeSeparators = false
 ): string {
   // Evaluate all components, tagging each with its type
   const evaluated: { type: string; value: string }[] = components.map((comp) => ({
@@ -569,6 +570,8 @@ function evaluateComponents(
   // Drop separators adjacent to empty content on both sides.
   // A separator is kept only if there is non-empty content before AND after it
   // (ignoring other separators in between).
+  // When preserveEdgeSeparators is true (inside conditionals), leading/trailing
+  // separators are kept since they connect to content outside the conditional.
   const filtered: { type: string; value: string }[] = [];
   for (let i = 0; i < evaluated.length; i++) {
     const entry = evaluated[i];
@@ -587,7 +590,12 @@ function evaluateComponents(
         if (evaluated[j].value) { hasAfter = true; }
         break;
       }
-      if (!hasBefore || !hasAfter) continue;
+      // Inside conditionals, preserve edge separators that connect to outside content
+      if (preserveEdgeSeparators) {
+        if (!hasBefore && !hasAfter) continue;
+      } else {
+        if (!hasBefore || !hasAfter) continue;
+      }
     }
     filtered.push(entry);
   }
@@ -598,9 +606,16 @@ function evaluateComponents(
     const entry = filtered[i];
     const prev = filtered[i - 1];
 
-    // Add space between non-separator components
-    if (i > 0 && entry.type !== 'sep' && entry.type !== 'conditional' && prev?.type !== 'sep' && entry.value) {
-      parts.push(' ');
+    // Add space between non-separator components.
+    // For conditionals: skip the space if the output already starts with
+    // separator whitespace (separators include built-in spacing like ' • ').
+    if (i > 0 && entry.type !== 'sep' && prev?.type !== 'sep' && entry.value) {
+      if (entry.type === 'conditional') {
+        const stripped = entry.value.replace(/\x1b\[[0-9;]*m/g, '');
+        if (!stripped.startsWith(' ')) parts.push(' ');
+      } else {
+        parts.push(' ');
+      }
     }
 
     if (entry.value) {
