@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.9.0](https://github.com/lucasilverentand/claudeline/compare/v1.8.0...v1.9.0) (2026-04-04)
+
+
+### Features
+
+* improve bar rendering with partial blocks, color, and add model-short ([6566e51](https://github.com/lucasilverentand/claudeline/commit/6566e517576c206c27b700df46d568611c2efc16))
+
+
+### Bug Fixes
+
+* preserve separators and spacing in conditional blocks ([8a89bfc](https://github.com/lucasilverentand/claudeline/commit/8a89bfcc14b5e8938fbcc67fd9327a1a0f5196d1))
+
 ## [1.8.0](https://github.com/lucasilverentand/claudeline/compare/v1.7.0...v1.8.0) (2026-03-05)
 
 
