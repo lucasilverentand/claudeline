@@ -85,6 +85,10 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
   switch (key) {
     case 'model':
       return data.model?.display_name || 'Claude';
+    case 'model-short': {
+      const name = data.model?.display_name || 'Claude';
+      return name.replace(/\s*\(.*\)$/, '');
+    }
     case 'model-id':
       return data.model?.id || '';
     case 'model-letter':
@@ -266,10 +270,20 @@ function evaluateContextComponent(key: string, data: Partial<ClaudeInput>, args?
     case 'size':
       return formatTokens(ctx?.context_window_size || 200000);
     case 'bar': {
-      const pct = ctx?.used_percentage || 0;
+      const pct = Math.max(0, Math.min(100, ctx?.used_percentage || 0));
       const width = args ? parseInt(args, 10) || 10 : 10;
-      const filled = Math.round((pct / 100) * width);
-      return '[' + '█'.repeat(filled) + '░'.repeat(width - filled) + ']';
+      const BLOCKS = ['░', '▎', '▌', '▊', '█'];
+      const fillExact = (pct / 100) * width;
+      const fullCells = Math.floor(fillExact);
+      const fractional = fillExact - fullCells;
+      const partialIdx = Math.round(fractional * 4);
+      const partialChar = BLOCKS[partialIdx];
+      const emptyCells = width - fullCells - 1;
+      const barStr = '█'.repeat(fullCells) + partialChar + '░'.repeat(Math.max(0, emptyCells));
+      if (noColor) return barStr;
+      const color = pct < 50 ? COLORS.green : pct < 75 ? COLORS.yellow : COLORS.red;
+      const bold = pct >= 90 ? `;${COLORS.bold}` : '';
+      return `\x1b[0;${color}${bold}m${barStr}\x1b[${RESET}m`;
     }
     case 'icon': {
       if (noIcons) return '';

@@ -57,9 +57,27 @@ function formatPaceDelta(delta: number, noColor: boolean): string {
   return `${paceColor(delta)}${text}\x1b[0m`;
 }
 
-function makeBar(pct: number, width: number, label?: string): string {
-  const filled = Math.round((pct / 100) * width);
-  const bar = '▰'.repeat(filled) + '▱'.repeat(width - filled);
+function barColor(pct: number): string {
+  if (pct < 50) return '\x1b[0;32m';  // green
+  if (pct < 75) return '\x1b[0;33m';  // yellow
+  if (pct < 90) return '\x1b[0;31m';  // red
+  return '\x1b[0;1;31m';              // bold red
+}
+
+const BLOCKS = ['░', '▎', '▌', '▊', '█'];
+
+function makeBar(pct: number, width: number, noColor: boolean, label?: string): string {
+  const clamped = Math.max(0, Math.min(100, pct));
+  const fillExact = (clamped / 100) * width;
+  const fullCells = Math.floor(fillExact);
+  const fractional = fillExact - fullCells;
+  const partialIdx = Math.round(fractional * 4);
+  const partialChar = BLOCKS[partialIdx];
+  const emptyCells = width - fullCells - 1;
+
+  const filled = '█'.repeat(fullCells) + partialChar + '░'.repeat(Math.max(0, emptyCells));
+  const color = barColor(clamped);
+  const bar = noColor ? filled : `${color}${filled}\x1b[0m`;
   return label ? label + bar : bar;
 }
 
@@ -90,12 +108,12 @@ export function evaluateUsageComponent(
       return formatTimeUntil(sevenDay.resets_at);
     case '5h-bar': {
       const width = args ? parseInt(args, 10) || 10 : 10;
-      return makeBar(fiveHour.used_percentage, width, 'H');
+      return makeBar(fiveHour.used_percentage, width, noColor);
     }
     case 'week-bar':
     case '7d-bar': {
       const width = args ? parseInt(args, 10) || 10 : 10;
-      return makeBar(sevenDay.used_percentage, width, 'W');
+      return makeBar(sevenDay.used_percentage, width, noColor);
     }
     case '5h-icon': {
       const pct = fiveHour.used_percentage;
