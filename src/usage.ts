@@ -35,16 +35,12 @@ function calculatePace(
   return { target, delta };
 }
 
-function paceColor(delta: number): string {
-  if (delta > 10) return '\x1b[0;33m'; // yellow — overpacing
-  if (delta < -10) return '\x1b[0;36m'; // cyan — underpacing
-  return '\x1b[0;32m'; // green — on pace
-}
-
 function formatPaceIcon(delta: number, noColor: boolean): string {
   const icon = delta > 10 ? '\uf0e7' : delta < -10 ? '\uf017' : '\uf00c';
   if (noColor) return icon;
-  return `${paceColor(delta)}${icon}\x1b[0m`;
+  const { fg, bold } = barColorFromDelta(delta);
+  if (fg === null) return icon;
+  return `\x1b[0;${bold ? '1;' : ''}${fg}m${icon}\x1b[0m`;
 }
 
 function formatPaceDelta(delta: number, noColor: boolean): string {
@@ -54,30 +50,35 @@ function formatPaceDelta(delta: number, noColor: boolean): string {
   else if (rounded < 0) text = rounded + '%';
   else text = '±0%';
   if (noColor) return text;
-  return `${paceColor(delta)}${text}\x1b[0m`;
+  const { fg, bold } = barColorFromDelta(delta);
+  if (fg === null) return text;
+  return `\x1b[0;${bold ? '1;' : ''}${fg}m${text}\x1b[0m`;
 }
 
-function barColor(pct: number): string {
-  if (pct < 50) return '\x1b[0;32m';  // green
-  if (pct < 75) return '\x1b[0;33m';  // yellow
-  if (pct < 90) return '\x1b[0;31m';  // red
-  return '\x1b[0;1;31m';              // bold red
+function barColorFromDelta(delta: number): { fg: number | null; bold: boolean } {
+  // delta > 0 means ahead of pace (using too fast)
+  if (delta > 15) return { fg: 31, bold: true };   // bold red — will hit limit early
+  if (delta > 5) return { fg: 31, bold: false };    // red — overpacing
+  return { fg: null, bold: false };                  // default foreground — fine
 }
 
-const BLOCKS = ['░', '▎', '▌', '▊', '█'];
-
-function makeBar(pct: number, width: number, noColor: boolean, label?: string): string {
+function makeBar(pct: number, width: number, noColor: boolean, delta = 0, label?: string): string {
   const clamped = Math.max(0, Math.min(100, pct));
-  const fillExact = (clamped / 100) * width;
-  const fullCells = Math.floor(fillExact);
-  const fractional = fillExact - fullCells;
-  const partialIdx = Math.round(fractional * 4);
-  const partialChar = BLOCKS[partialIdx];
-  const emptyCells = width - fullCells - 1;
+  const filled = Math.round((clamped / 100) * width);
+  const empty = width - filled;
+  const filledStr = '█'.repeat(filled);
+  const emptyStr = '░'.repeat(empty);
 
-  const filled = '█'.repeat(fullCells) + partialChar + '░'.repeat(Math.max(0, emptyCells));
-  const color = barColor(clamped);
-  const bar = noColor ? filled : `${color}${filled}\x1b[0m`;
+  if (noColor) return (label || '') + filledStr + emptyStr;
+  const { fg, bold } = barColorFromDelta(delta);
+  if (fg === null) {
+    const bar = `${filledStr}\x1b[2m${emptyStr}\x1b[0m`;
+    return label ? label + bar : bar;
+  }
+  const boldStr = bold ? '1;' : '';
+  const fillColor = `\x1b[0;${boldStr}${fg}m`;
+  const dimColor = `\x1b[0;2;${fg}m`;
+  const bar = `${fillColor}${filledStr}\x1b[0m${dimColor}${emptyStr}\x1b[0m`;
   return label ? label + bar : bar;
 }
 
@@ -108,29 +109,29 @@ export function evaluateUsageComponent(
       return formatTimeUntil(sevenDay.resets_at);
     case '5h-bar': {
       const width = args ? parseInt(args, 10) || 10 : 10;
-      return makeBar(fiveHour.used_percentage, width, noColor);
+      const { delta } = calculatePace(fiveHour.used_percentage, fiveHour.resets_at, FIVE_HOUR_MS);
+      return makeBar(fiveHour.used_percentage, width, noColor, delta);
     }
     case 'week-bar':
     case '7d-bar': {
       const width = args ? parseInt(args, 10) || 10 : 10;
-      return makeBar(sevenDay.used_percentage, width, noColor);
+      const { delta } = calculatePace(sevenDay.used_percentage, sevenDay.resets_at, SEVEN_DAY_MS);
+      return makeBar(sevenDay.used_percentage, width, noColor, delta);
     }
     case '5h-icon': {
-      const pct = fiveHour.used_percentage;
+      const { delta } = calculatePace(fiveHour.used_percentage, fiveHour.resets_at, FIVE_HOUR_MS);
+      const { fg, bold } = barColorFromDelta(delta);
       const icon = '\uf111';
-      if (pct < 50) return `\x1b[0;32m${icon}\x1b[0m`;
-      if (pct < 75) return `\x1b[0;33m${icon}\x1b[0m`;
-      if (pct < 90) return `\x1b[0;31m${icon}\x1b[0m`;
-      return `\x1b[0;1;31m${icon}\x1b[0m`;
+      if (noColor || fg === null) return icon;
+      return `\x1b[0;${bold ? '1;' : ''}${fg}m${icon}\x1b[0m`;
     }
     case 'week-icon':
     case '7d-icon': {
-      const pct = sevenDay.used_percentage;
+      const { delta } = calculatePace(sevenDay.used_percentage, sevenDay.resets_at, SEVEN_DAY_MS);
+      const { fg, bold } = barColorFromDelta(delta);
       const icon = '\uf111';
-      if (pct < 50) return `\x1b[0;32m${icon}\x1b[0m`;
-      if (pct < 75) return `\x1b[0;33m${icon}\x1b[0m`;
-      if (pct < 90) return `\x1b[0;31m${icon}\x1b[0m`;
-      return `\x1b[0;1;31m${icon}\x1b[0m`;
+      if (noColor || fg === null) return icon;
+      return `\x1b[0;${bold ? '1;' : ''}${fg}m${icon}\x1b[0m`;
     }
     case '5h-target': {
       const { target } = calculatePace(fiveHour.used_percentage, fiveHour.resets_at, FIVE_HOUR_MS);

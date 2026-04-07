@@ -104,16 +104,7 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
       const effort = resolveEffort(data);
       if (!effort) return '';
       if (key === 'effort-icon' && noIcons) return '';
-      const text = key === 'effort-icon' ? '\u{f09d1}' : effort;
-      if (noColor) return text;
-      const r = `\x1b[${RESET}m`;
-      const effortColors: Record<string, string> = {
-        low: COLORS.green,
-        medium: COLORS.yellow,
-        high: COLORS.red,
-      };
-      const code = effortColors[effort] || '';
-      return code ? `\x1b[0;${code}m${text}${r}` : text;
+      return key === 'effort-icon' ? '\u{f09d1}' : effort;
     }
     case 'style':
       return data.output_style?.name || 'default';
@@ -272,18 +263,16 @@ function evaluateContextComponent(key: string, data: Partial<ClaudeInput>, args?
     case 'bar': {
       const pct = Math.max(0, Math.min(100, ctx?.used_percentage || 0));
       const width = args ? parseInt(args, 10) || 10 : 10;
-      const BLOCKS = ['░', '▎', '▌', '▊', '█'];
-      const fillExact = (pct / 100) * width;
-      const fullCells = Math.floor(fillExact);
-      const fractional = fillExact - fullCells;
-      const partialIdx = Math.round(fractional * 4);
-      const partialChar = BLOCKS[partialIdx];
-      const emptyCells = width - fullCells - 1;
-      const barStr = '█'.repeat(fullCells) + partialChar + '░'.repeat(Math.max(0, emptyCells));
-      if (noColor) return barStr;
+      const filled = Math.round((pct / 100) * width);
+      const empty = width - filled;
+      const filledStr = '█'.repeat(filled);
+      const emptyStr = '░'.repeat(empty);
+      if (noColor) return filledStr + emptyStr;
       const color = pct < 50 ? COLORS.green : pct < 75 ? COLORS.yellow : COLORS.red;
       const bold = pct >= 90 ? `;${COLORS.bold}` : '';
-      return `\x1b[0;${color}${bold}m${barStr}\x1b[${RESET}m`;
+      const fillColor = `\x1b[0;${color}${bold}m`;
+      const dimColor = `\x1b[0;2;${color}m`;
+      return `${fillColor}${filledStr}\x1b[${RESET}m${dimColor}${emptyStr}\x1b[${RESET}m`;
     }
     case 'icon': {
       if (noIcons) return '';
