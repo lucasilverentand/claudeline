@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.10.0](https://github.com/lucasilverentand/claudeline/compare/v1.9.0...v1.10.0) (2026-04-07)
+
+
+### Features
+
+* add model-family component and circle effort icons ([76d3234](https://github.com/lucasilverentand/claudeline/commit/76d3234964b2449ce34d4b2f6440b3df4b967b06))
+
 ## [1.9.0](https://github.com/lucasilverentand/claudeline/compare/v1.8.0...v1.9.0) (2026-04-04)
 
 
