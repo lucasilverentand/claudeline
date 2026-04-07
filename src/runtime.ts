@@ -93,6 +93,13 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
       return data.model?.id || '';
     case 'model-letter':
       return (data.model?.display_name || 'C')[0].toUpperCase();
+    case 'model-family': {
+      const name = (data.model?.display_name || '').toLowerCase();
+      if (name.includes('opus')) return 'Opus';
+      if (name.includes('sonnet')) return 'Sonnet';
+      if (name.includes('haiku')) return 'Haiku';
+      return data.model?.display_name || 'Claude';
+    }
     case 'version':
       return data.version || '';
     case 'session':
@@ -104,7 +111,16 @@ function evaluateClaudeComponent(key: string, data: Partial<ClaudeInput>, noColo
       const effort = resolveEffort(data);
       if (!effort) return '';
       if (key === 'effort-icon' && noIcons) return '';
-      return key === 'effort-icon' ? '\u{f09d1}' : effort;
+      if (key === 'effort-icon') {
+        const icons: Record<string, string> = {
+          low: '○',
+          medium: '◑',
+          high: '●',
+          max: '◉',
+        };
+        return icons[effort] || '●';
+      }
+      return effort;
     }
     case 'style':
       return data.output_style?.name || 'default';

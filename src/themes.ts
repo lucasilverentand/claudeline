@@ -29,7 +29,7 @@ export const THEMES: Record<string, string> = {
 
   colorful: 'bold:magenta:claude:model sep:arrow cyan:nerd:nf-cod-folder cyan:fs:dir sep:arrow green:nerd:nf-dev-git_branch green:git:branch yellow:git:status sep:arrow blue:nerd:nf-fa-gauge blue:ctx:percent',
 
-  luca: 'claude:model-letter if:effort(dim:sep:middot claude:effort-icon claude:effort) dim:sep:middot nerd:nf-md-source_branch git:repo sep:none text:: sep:none git:branch if:subdir(sep:none text:/ sep:none fs:relative) if:dirty(dim:sep:middot git:dirty) dim:sep:middot dim:account:email sep:newline dim:nerd:nf-md-clock_fast usage:5h-bar:10 usage:5h usage:5h-pace dim:usage:5h-reset dim:sep:middot dim:nerd:nf-md-calendar_week usage:week-bar:10 usage:week usage:week-pace dim:usage:week-reset ',
+  luca: 'claude:model-family claude:effort-icon dim:sep:middot nerd:nf-md-source_branch git:repo sep:none text:: sep:none git:branch if:subdir(sep:none text:/ sep:none fs:relative) if:dirty(dim:sep:middot git:dirty) dim:sep:middot dim:account:email sep:newline dim:nerd:nf-md-clock_fast usage:5h-bar:10 usage:5h usage:5h-pace dim:usage:5h-reset dim:sep:middot dim:nerd:nf-md-calendar_week usage:week-bar:10 usage:week usage:week-pace dim:usage:week-reset ',
 };
 
 export function getTheme(name: string): string | null {
