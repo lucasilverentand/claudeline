@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/lucasilverentand/claudeline/compare/v1.10.0...v1.11.0) (2026-04-09)
+
+
+### Features
+
+* add refreshInterval support with 5s default ([a4dda21](https://github.com/lucasilverentand/claudeline/commit/a4dda21c0e2d08d2adde8549101c4c1222a176f8))
+
 ## [1.10.0](https://github.com/lucasilverentand/claudeline/compare/v1.9.0...v1.10.0) (2026-04-07)
 
 
