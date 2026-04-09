@@ -8,6 +8,7 @@ export interface InstallOptions {
   globalInstall?: boolean;
   noIcons?: boolean;
   noColor?: boolean;
+  refreshInterval?: number;
 }
 
 export function getClaudeConfigDir(): string {
@@ -88,6 +89,7 @@ export function install(
       type: 'command',
       command,
       padding: 0,
+      refreshInterval: options.refreshInterval ?? 5,
     };
 
     fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2));

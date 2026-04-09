@@ -77,6 +77,7 @@ program
   .option('--use-bunx', 'Use bunx in installed command')
   .option('--use-npx', 'Use npx in installed command')
   .option('--global-install', 'Assume claudeline is globally installed (use claudeline directly)')
+  .option('--refresh-interval <seconds>', 'Re-run status line command every N seconds', parseInt)
   .addHelpText('after', `
 Examples:
   $ npx claudeline --theme minimal --install
@@ -143,6 +144,7 @@ Multiple style prefixes can be chained: bold:green:git:branch
           globalInstall: options.globalInstall,
           noIcons: !options.icons || !options.emoji,
           noColor: !options.color,
+          refreshInterval: options.refreshInterval,
         });
         if (result.success) {
           console.log('✓ ' + result.message);
@@ -177,6 +179,7 @@ Multiple style prefixes can be chained: bold:green:git:branch
         globalInstall: options.globalInstall,
         noIcons: !options.icons || !options.emoji,
         noColor: !options.color,
+        refreshInterval: options.refreshInterval,
       });
       if (result.success) {
         console.log('✓ ' + result.message);
